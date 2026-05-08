@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/get-session';
+import { getDemoClassById, getDemoClassStatus } from '@/lib/demo-classes';
 
 interface ClassParams {
   params: {
@@ -21,6 +22,23 @@ export async function GET(_request: Request, { params }: ClassParams) {
   });
 
   if (!classItem) {
+    const demoClass = getDemoClassById(params.id);
+    if (demoClass) {
+      return NextResponse.json({
+        id: demoClass.id,
+        title: demoClass.title,
+        subject: demoClass.subject,
+        description: demoClass.description,
+        instructor: { name: demoClass.instructor.name },
+        scheduleTime: demoClass.scheduleTime,
+        timezone: demoClass.timezone || 'Asia/Karachi',
+        meetLink: demoClass.meetLink,
+        feePkr: demoClass.feePkr,
+        type: demoClass.type,
+        status: getDemoClassStatus(demoClass.scheduleTime),
+        maxStudents: demoClass.maxStudents,
+      });
+    }
     return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
   }
 

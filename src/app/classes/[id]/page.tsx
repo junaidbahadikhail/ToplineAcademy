@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
 import { DailyRoom } from '@/components/DailyRoom';
@@ -55,12 +56,23 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
     }).catch(() => setLoading(false));
   }, [params.id]);
 
+  const router = useRouter();
+
   const enroll = async () => {
     setEnrolling(true);
     setError(null);
     const res = await fetch(`/api/classes/${params.id}/enroll`, { method: 'POST' });
     const data = await res.json();
-    if (!res.ok) { setError(data.error); } else { setEnrollStatus('pending'); }
+    if (!res.ok) {
+      if (res.status === 401) {
+        router.push('/login');
+        setEnrolling(false);
+        return;
+      }
+      setError(data.error || 'Unable to enroll.');
+    } else {
+      setEnrollStatus('pending');
+    }
     setEnrolling(false);
   };
 

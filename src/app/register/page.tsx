@@ -20,6 +20,12 @@ export default function RegisterPage() {
     setError(null);
     setMessage(null);
 
+    if (!form.name || !form.email || !form.phone || !form.city || !form.password) {
+      setError('Please complete all required fields.');
+      setLoading(false);
+      return;
+    }
+
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -117,6 +123,7 @@ export default function RegisterPage() {
                   value={form.city}
                   onChange={(e) => handleChange('city', e.target.value)}
                   type="text"
+                  required
                   className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                   placeholder="Lahore"
                 />

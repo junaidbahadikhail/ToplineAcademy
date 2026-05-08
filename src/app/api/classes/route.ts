@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getSessionFromRequest } from '@/lib/get-session';
+import { demoClasses, getDemoClassStatus } from '@/lib/demo-classes';
 
 type ClassWithInstructor = Prisma.ClassGetPayload<{
   include: {
@@ -13,26 +14,15 @@ type ClassWithInstructor = Prisma.ClassGetPayload<{
   };
 }>;
 
-const fallbackClasses = [
-  {
-    id: 'demo-1',
-    title: 'AI Fundamentals for Beginners',
-    instructor: { name: 'Mrs. Sana Ali' },
-    schedule: 'May 15, 2026 · 18:00 PKT',
-    feePkr: 2500,
-    type: 'LIVE',
-    status: 'UPCOMING',
-  },
-  {
-    id: 'demo-2',
-    title: 'Python for Data Science',
-    instructor: { name: 'Mr. Ahmed Raza' },
-    schedule: 'May 18, 2026 · 20:00 PKT',
-    feePkr: 3000,
-    type: 'LIVE',
-    status: 'UPCOMING',
-  },
-];
+const fallbackClasses = demoClasses.map((item) => ({
+  id: item.id,
+  title: item.title,
+  instructor: item.instructor,
+  schedule: item.scheduleTime,
+  feePkr: item.feePkr,
+  type: item.type,
+  status: getDemoClassStatus(item.scheduleTime),
+}));
 
 export async function GET() {
   try {
