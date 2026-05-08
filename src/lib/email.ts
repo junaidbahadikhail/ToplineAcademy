@@ -9,7 +9,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
   }
 
   await resend.emails.send({
-    from: 'Topline Academy <noreply@yourdomain.com>', // Replace with your verified domain
+    from: 'Topline Academy <noreply@project-kv5ka.vercel.app>',
     to,
     subject,
     html,

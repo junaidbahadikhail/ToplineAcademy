@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', password: '', role: 'STUDENT' });
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,15 +27,19 @@ export default function RegisterPage() {
     });
 
     const data = await response.json();
-
     setLoading(false);
+
     if (!response.ok) {
       setError(data.error || 'Registration failed.');
       return;
     }
 
-    setMessage('Your account has been created. Please login to continue.');
-    setForm({ name: '', email: '', phone: '', city: '', password: '' });
+    setMessage(
+      form.role === 'INSTRUCTOR'
+        ? 'Your instructor account has been created. An admin will review and approve it shortly.'
+        : 'Your account has been created. Please login to continue.'
+    );
+    setForm({ name: '', email: '', phone: '', city: '', password: '', role: 'STUDENT' });
   };
 
   return (
@@ -44,17 +48,41 @@ export default function RegisterPage() {
       <section className="mx-auto max-w-2xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
           <div className="mb-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-teal-950/80">Student registration</p>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Create your Topline account</h1>
+            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-teal-950/80">Create account</p>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Join Topline Academy</h1>
           </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            {(['STUDENT', 'INSTRUCTOR'] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handleChange('role', r)}
+                className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  form.role === r
+                    ? 'border-teal-950 bg-teal-950 text-white'
+                    : 'border-slate-300 bg-slate-50 text-slate-700 hover:border-teal-950'
+                }`}
+              >
+                {r === 'STUDENT' ? 'Student' : 'Instructor'}
+              </button>
+            ))}
+          </div>
+          {form.role === 'INSTRUCTOR' && (
+            <p className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Instructor accounts require admin approval before you can create classes.
+            </p>
+          )}
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
                 <span className="text-sm font-medium text-slate-700">Full name</span>
                 <input
                   value={form.name}
-                  onChange={(event) => handleChange('name', event.target.value)}
+                  onChange={(e) => handleChange('name', e.target.value)}
                   type="text"
+                  required
                   className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                   placeholder="Ahmed Khan"
                 />
@@ -63,8 +91,9 @@ export default function RegisterPage() {
                 <span className="text-sm font-medium text-slate-700">Phone (Pakistan)</span>
                 <input
                   value={form.phone}
-                  onChange={(event) => handleChange('phone', event.target.value)}
+                  onChange={(e) => handleChange('phone', e.target.value)}
                   type="tel"
+                  required
                   className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                   placeholder="0312 1234567"
                 />
@@ -75,8 +104,9 @@ export default function RegisterPage() {
                 <span className="text-sm font-medium text-slate-700">Email</span>
                 <input
                   value={form.email}
-                  onChange={(event) => handleChange('email', event.target.value)}
+                  onChange={(e) => handleChange('email', e.target.value)}
                   type="email"
+                  required
                   className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                   placeholder="ahmed@example.com"
                 />
@@ -85,7 +115,7 @@ export default function RegisterPage() {
                 <span className="text-sm font-medium text-slate-700">City</span>
                 <input
                   value={form.city}
-                  onChange={(event) => handleChange('city', event.target.value)}
+                  onChange={(e) => handleChange('city', e.target.value)}
                   type="text"
                   className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                   placeholder="Lahore"
@@ -96,20 +126,21 @@ export default function RegisterPage() {
               <span className="text-sm font-medium text-slate-700">Password</span>
               <input
                 value={form.password}
-                onChange={(event) => handleChange('password', event.target.value)}
+                onChange={(e) => handleChange('password', e.target.value)}
                 type="password"
+                required
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                 placeholder="Create a strong password"
               />
             </label>
-            {error ? <p className="text-sm text-red-600">{error}</p> : null}
-            {message ? <p className="text-sm text-teal-950">{message}</p> : null}
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            {message && <p className="text-sm text-teal-700">{message}</p>}
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-full bg-teal-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-teal-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {loading ? 'Registering…' : 'Register'}
+              {loading ? 'Registering…' : `Register as ${form.role === 'INSTRUCTOR' ? 'Instructor' : 'Student'}`}
             </button>
           </form>
           <p className="mt-6 text-center text-sm text-slate-500">
