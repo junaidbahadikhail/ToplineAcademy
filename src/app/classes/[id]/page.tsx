@@ -1,39 +1,206 @@
-import { SiteHeader } from '@/components/SiteHeader';
+'use client';
 
-export default function ClassDetailPage() {
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { SiteHeader } from '@/components/SiteHeader';
+import { DailyRoom } from '@/components/DailyRoom';
+
+interface ClassDetail {
+  id: string;
+  title: string;
+  subject: string;
+  description: string | null;
+  instructor: { name: string };
+  scheduleTime: string;
+  timezone: string;
+  meetLink: string | null;
+  feePkr: number;
+  type: string;
+  status: string;
+  maxStudents: number;
+}
+
+type EnrollStatus = 'none' | 'pending' | 'approved' | 'rejected';
+
+function fmt(iso: string) {
+  return new Date(iso).toLocaleString('en-PK', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Asia/Karachi',
+  }) + ' PKT';
+}
+
+export default function ClassDetailPage({ params }: { params: { id: string } }) {
+  const [cls, setCls] = useState<ClassDetail | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [enrollStatus, setEnrollStatus] = useState<EnrollStatus>('none');
+  const [joining, setJoining] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/classes/${params.id}`).then((r) => r.json()),
+      fetch('/api/auth/me').then((r) => r.json()),
+      fetch('/api/dashboard/student').then((r) => r.json()),
+    ]).then(([classData, meData, enrollData]) => {
+      setCls(classData.error ? null : classData);
+      setRole(meData.user?.role ?? null);
+      if (Array.isArray(enrollData)) {
+        const found = enrollData.find((e: { class: { id: string }; status: string }) => e.class.id === params.id);
+        if (found) setEnrollStatus(found.status.toLowerCase() as EnrollStatus);
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [params.id]);
+
+  const enroll = async () => {
+    setEnrolling(true);
+    setError(null);
+    const res = await fetch(`/api/classes/${params.id}/enroll`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { setError(data.error); } else { setEnrollStatus('pending'); }
+    setEnrolling(false);
+  };
+
+  if (loading) return (
+    <main><SiteHeader />
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-950 border-t-transparent" />
+      </div>
+    </main>
+  );
+
+  if (!cls) return (
+    <main><SiteHeader />
+      <div className="mx-auto max-w-xl py-24 text-center text-slate-500">Class not found.</div>
+    </main>
+  );
+
+  const isLive = cls.status === 'LIVE_NOW';
+  const canJoin = isLive && enrollStatus === 'approved' && joining;
+
   return (
     <main>
       <SiteHeader />
-      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 lg:px-8">
+      <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+
+        {/* Live video */}
+        {canJoin && cls.meetLink && (
+          <div className="mb-8">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Live session
+              </span>
+              <button onClick={() => setJoining(false)} className="text-sm text-slate-500 underline">Leave</button>
+            </div>
+            <DailyRoom roomName={cls.meetLink} />
+          </div>
+        )}
+
         <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.25em] text-teal-950/80">Class detail</p>
-              <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-900">AI Fundamentals for Beginners</h1>
+              {isLive && (
+                <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" /> LIVE NOW
+                </span>
+              )}
+              <p className="text-sm font-semibold uppercase tracking-widest text-teal-950/70">{cls.subject}</p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{cls.title}</h1>
             </div>
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <p className="text-slate-600">Instructor: Mrs. Sana Ali</p>
-                <p className="text-slate-600">Schedule: May 15, 2026 · 18:00 PKT</p>
-                <p className="text-slate-600">Type: Live class</p>
-                <p className="text-slate-600">Max seats: 50</p>
-                <p className="text-slate-600">Fee: 2,500 PKR</p>
-              </div>
-              <div className="rounded-3xl bg-slate-50 p-6">
-                <p className="text-sm font-semibold text-slate-700">Enrollment</p>
-                <p className="mt-3 text-slate-600">Send payment proof after submitting your enrollment request.</p>
-                <a href="/register" className="mt-6 inline-flex rounded-full bg-teal-950 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-900">
-                  Enroll now
-                </a>
-              </div>
+            <p className="text-3xl font-bold text-teal-950">
+              {cls.feePkr.toLocaleString()}<span className="text-base font-normal"> PKR</span>
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-8 md:grid-cols-2">
+            <div className="space-y-3 text-sm text-slate-600">
+              <p><span className="font-semibold text-slate-800">Instructor:</span> {cls.instructor.name}</p>
+              <p><span className="font-semibold text-slate-800">Schedule:</span> {fmt(cls.scheduleTime)}</p>
+              <p><span className="font-semibold text-slate-800">Type:</span> {cls.type === 'LIVE' ? 'Live session' : 'Recorded'}</p>
+              <p><span className="font-semibold text-slate-800">Max students:</span> {cls.maxStudents}</p>
+              <p><span className="font-semibold text-slate-800">Status:</span> {cls.status.replace('_', ' ')}</p>
             </div>
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <h2 className="text-xl font-semibold text-slate-900">Course overview</h2>
-              <p className="mt-4 text-slate-600">
-                Learn the fundamentals of AI, Python, and practical machine learning concepts in a format optimized for Pakistani students. This live session is designed to run smoothly over local internet and includes manual payment verification.
-              </p>
+
+            {/* Enrollment panel */}
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <p className="font-semibold text-slate-800">Enrollment</p>
+
+              {role === null && (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-500 mb-3">Login to enroll in this class.</p>
+                  <Link href="/login" className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
+                    Login to enroll
+                  </Link>
+                </div>
+              )}
+
+              {role === 'STUDENT' && enrollStatus === 'none' && (
+                <div className="mt-4">
+                  <p className="text-sm text-slate-500 mb-3">Submit your enrollment. Admin will review and approve it.</p>
+                  {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+                  <button
+                    onClick={enroll}
+                    disabled={enrolling}
+                    className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60"
+                  >
+                    {enrolling ? 'Enrolling…' : 'Enroll now'}
+                  </button>
+                </div>
+              )}
+
+              {role === 'STUDENT' && enrollStatus === 'pending' && (
+                <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
+                  <p className="text-sm font-semibold text-amber-800">Enrollment pending</p>
+                  <p className="mt-1 text-sm text-amber-700">Admin will review your enrollment. Check your dashboard for updates.</p>
+                </div>
+              )}
+
+              {role === 'STUDENT' && enrollStatus === 'rejected' && (
+                <div className="mt-4 rounded-2xl bg-red-50 border border-red-200 p-4">
+                  <p className="text-sm font-semibold text-red-700">Enrollment rejected</p>
+                  <p className="mt-1 text-sm text-red-600">Contact support for more information.</p>
+                </div>
+              )}
+
+              {role === 'STUDENT' && enrollStatus === 'approved' && !isLive && (
+                <div className="mt-4 rounded-2xl bg-green-50 border border-green-200 p-4">
+                  <p className="text-sm font-semibold text-green-700">You are enrolled</p>
+                  <p className="mt-1 text-sm text-green-600">You can join when the session goes live.</p>
+                  <Link href="/dashboard/student" className="mt-3 inline-flex text-sm underline text-green-700">View in dashboard →</Link>
+                </div>
+              )}
+
+              {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
+                <div className="mt-4">
+                  <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
+                  <button
+                    onClick={() => setJoining(true)}
+                    className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                  >
+                    Join live session →
+                  </button>
+                </div>
+              )}
+
+              {(role === 'INSTRUCTOR' || role === 'ADMIN') && (
+                <div className="mt-4">
+                  <Link href="/dashboard/instructor" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
+                    Manage in dashboard →
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
+
+          {cls.description && (
+            <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
+              <h2 className="font-semibold text-slate-900">Course overview</h2>
+              <p className="mt-3 text-sm text-slate-600 leading-relaxed">{cls.description}</p>
+            </div>
+          )}
         </div>
       </section>
     </main>

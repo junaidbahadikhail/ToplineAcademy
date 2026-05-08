@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { getSessionFromRequest } from '@/lib/get-session';
 
 type ClassWithInstructor = Prisma.ClassGetPayload<{
   include: {
@@ -66,4 +67,34 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(fallbackClasses);
   }
+}
+
+export async function POST(request: Request) {
+  const session = getSessionFromRequest(request);
+  if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
+    return NextResponse.json({ error: 'Only instructors can create classes.' }, { status: 403 });
+  }
+
+  const body = await request.json();
+  const { title, subject, description, scheduleTime, maxStudents, feePkr } = body;
+
+  if (!title || !subject || !scheduleTime || !maxStudents || !feePkr) {
+    return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+  }
+
+  const cls = await prisma.class.create({
+    data: {
+      title,
+      subject,
+      description: description || '',
+      instructorId: session.userId,
+      type: 'LIVE',
+      scheduleTime: new Date(scheduleTime),
+      maxStudents: Number(maxStudents),
+      feePkr: Number(feePkr),
+      meetLink: `tl-${Date.now().toString(36)}`,
+    },
+  });
+
+  return NextResponse.json(cls, { status: 201 });
 }
