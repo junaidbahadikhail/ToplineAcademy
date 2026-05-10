@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/get-session';
 import { sendEnrollmentConfirmationEmail } from '@/lib/email';
 import { getDemoClassById } from '@/lib/demo-classes';
+import { EnrollSchema } from '@/lib/schemas';
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
@@ -17,14 +18,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 
   const body = await request.json().catch(() => ({}));
-  const { paymentProofUrl } = body as { paymentProofUrl?: string };
-
-  if (!paymentProofUrl) {
+  const parsed = EnrollSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
       { error: 'Payment proof is required. Please upload a screenshot of your bank transfer.' },
       { status: 400 }
     );
   }
+  const { paymentProofUrl } = parsed.data;
 
   const existing = await prisma.enrollment.findFirst({
     where: { studentId: session.userId, classId: params.id },

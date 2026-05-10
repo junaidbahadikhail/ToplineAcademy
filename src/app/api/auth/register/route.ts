@@ -2,21 +2,18 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
 import { sendWelcomeEmail } from '@/lib/email';
+import { RegisterSchema } from '@/lib/schemas';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, phone, city, password, role } = body || {};
-
-    if (!name || !email || !phone || !city || !password) {
-      return NextResponse.json({ error: 'Name, email, phone, city, and password are required.' }, { status: 400 });
+    const parsed = RegisterSchema.safeParse(body);
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? 'Invalid input.';
+      return NextResponse.json({ error: message }, { status: 400 });
     }
 
-    const phoneClean = phone.replace(/[\s-]/g, '');
-    const validPhone = /^([+]92\d{10}|03\d{9})$/.test(phoneClean);
-    if (!validPhone) {
-      return NextResponse.json({ error: 'Phone must be a valid Pakistani number (e.g. 0312 1234567 or +923121234567).' }, { status: 400 });
-    }
+    const { name, email, phone, city, password, role } = parsed.data;
 
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {

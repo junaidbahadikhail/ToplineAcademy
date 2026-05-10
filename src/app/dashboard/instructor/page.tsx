@@ -17,6 +17,7 @@ interface ClassItem {
   meetLink: string | null;
   _count: { enrollments: number };
   enrollments: { id: string }[];
+  meetingNote: { summary: string | null; keyTopics: string[]; recordingId: string | null } | null;
 }
 
 interface RecordingState {
@@ -75,7 +76,24 @@ export default function InstructorDashboardPage() {
   const fetchClasses = () => {
     fetch('/api/dashboard/instructor')
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => { setClasses(Array.isArray(data) ? data : []); setLoading(false); })
+      .then((data: ClassItem[]) => {
+        setClasses(Array.isArray(data) ? data : []);
+        setLoading(false);
+        // Restore recording state for classes that already have notes
+        setRecordings((prev) => {
+          const next = { ...prev };
+          for (const cls of data) {
+            if (cls.meetingNote?.summary && !next[cls.id]) {
+              next[cls.id] = {
+                recordingId: cls.meetingNote.recordingId,
+                phase: 'done',
+                summary: cls.meetingNote.summary,
+              };
+            }
+          }
+          return next;
+        });
+      })
       .catch(() => setLoading(false));
   };
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getSession } from '@/lib/get-session';
 import { demoClasses, getDemoClassStatus } from '@/lib/demo-classes';
+import { CreateClassSchema } from '@/lib/schemas';
 
 type ClassWithInstructor = Prisma.ClassGetPayload<{
   include: {
@@ -66,25 +67,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Only instructors can create classes.' }, { status: 403 });
   }
 
-  const body = await request.json();
-  const { title, subject, description, scheduleTime, maxStudents, feePkr } = body;
-
-  if (!title || !subject || !scheduleTime || !maxStudents || !feePkr) {
-    return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
+  const body = await request.json().catch(() => ({}));
+  const parsed = CreateClassSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input.' }, { status: 400 });
   }
+
+  const { title, subject, description, scheduleTime, maxStudents, feePkr, type, videoUrl } = parsed.data;
 
   const cls = await prisma.class.create({
     data: {
       title,
       subject,
-      description: description || '',
+      description: description ?? '',
       instructorId: session.userId,
-      type: 'LIVE',
+      type,
       scheduleTime: new Date(scheduleTime),
-      maxStudents: Number(maxStudents),
-      feePkr: Number(feePkr),
+      maxStudents,
+      feePkr,
+      videoUrl: videoUrl ?? null,
       isApproved: session.role === 'ADMIN',
-      meetLink: `tl-${Date.now().toString(36)}`,
+      meetLink: type === 'LIVE' ? `tl-${Date.now().toString(36)}` : null,
     },
   });
 

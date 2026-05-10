@@ -13,6 +13,7 @@ export async function GET() {
     include: {
       _count: { select: { enrollments: true } },
       enrollments: { where: { status: 'APPROVED' }, select: { id: true } },
+      meetingNote: { select: { summary: true, keyTopics: true, recordingId: true } },
     },
     orderBy: { scheduleTime: 'asc' },
   });

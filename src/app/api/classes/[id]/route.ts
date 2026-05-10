@@ -75,7 +75,7 @@ export async function PATCH(request: Request, { params }: ClassParams) {
   }
 
   const body = await request.json();
-  const { scheduleTime, title, subject, description, maxStudents, feePkr } = body;
+  const { scheduleTime, title, subject, description, maxStudents, feePkr, videoUrl } = body;
 
   const classItem = await prisma.class.findUnique({ where: { id: params.id } });
   if (!classItem) return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
@@ -92,6 +92,7 @@ export async function PATCH(request: Request, { params }: ClassParams) {
       ...(scheduleTime && { scheduleTime: new Date(scheduleTime) }),
       ...(maxStudents && { maxStudents: Number(maxStudents) }),
       ...(feePkr && { feePkr: Number(feePkr) }),
+      ...(videoUrl !== undefined && { videoUrl: videoUrl || null }),
     },
   });
 

@@ -15,6 +15,7 @@ interface ClassDetail {
   scheduleTime: string;
   timezone: string;
   meetLink: string | null;
+  videoUrl: string | null;
   feePkr: number;
   type: string;
   status: string;
@@ -347,6 +348,33 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
             <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <h2 className="font-semibold text-slate-900">Course overview</h2>
               <p className="mt-3 text-sm text-slate-600 leading-relaxed">{cls.description}</p>
+            </div>
+          )}
+
+          {/* Recorded class video player — visible to approved students and admins */}
+          {cls.type === 'RECORDED' && cls.videoUrl && (role === 'ADMIN' || enrollStatus === 'approved') && (
+            <div className="mt-8">
+              <h2 className="mb-4 font-semibold text-slate-900">Recorded Session</h2>
+              {cls.videoUrl.includes('youtube.com') || cls.videoUrl.includes('youtu.be') || cls.videoUrl.includes('vimeo.com') ? (
+                <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-black" style={{ paddingBottom: '56.25%' }}>
+                  <iframe
+                    src={cls.videoUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/')}
+                    className="absolute inset-0 h-full w-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title={cls.title}
+                  />
+                </div>
+              ) : (
+                <video
+                  src={cls.videoUrl}
+                  controls
+                  className="w-full rounded-3xl border border-slate-200 bg-black"
+                  style={{ maxHeight: '560px' }}
+                >
+                  Your browser does not support video playback.
+                </video>
+              )}
             </div>
           )}
 
