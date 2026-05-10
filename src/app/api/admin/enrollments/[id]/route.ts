@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 import { sendEnrollmentApprovedEmail, sendEnrollmentRejectedEmail } from '@/lib/email';
 
@@ -16,33 +16,31 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Status must be APPROVED or REJECTED.' }, { status: 400 });
   }
 
-  const enrollment = await prisma.enrollment.update({
-    where: { id: params.id },
-    data: {
-      status,
-      ...(status === 'APPROVED' && { approvedAt: new Date() }),
-    },
-    include: {
-      student: { select: { name: true, email: true } },
-      class: { select: { title: true, scheduleTime: true, meetLink: true } },
-    },
-  });
+  const updateData: Record<string, unknown> = { status };
+  if (status === 'APPROVED') updateData.approvedAt = new Date().toISOString();
 
-  // Fire-and-forget: email + Notion
-  if (status === 'APPROVED') {
-    void sendEnrollmentApprovedEmail(
-      enrollment.student.email,
-      enrollment.student.name,
-      enrollment.class.title,
-      enrollment.class.scheduleTime.toISOString(),
-      enrollment.class.meetLink,
-    );
-  } else {
-    void sendEnrollmentRejectedEmail(
-      enrollment.student.email,
-      enrollment.student.name,
-      enrollment.class.title,
-    );
+  const { data: enrollment, error } = await supabaseAdmin
+    .from('Enrollment')
+    .update(updateData)
+    .eq('id', params.id)
+    .select('*, student:User!studentId(name, email), class:Class!classId(title, scheduleTime, meetLink)')
+    .single();
+
+  if (error || !enrollment) {
+    console.error('Enrollment update error:', error);
+    return NextResponse.json({ error: 'Failed to update enrollment.' }, { status: 500 });
   }
+
+  const student = enrollment.student as { name: string; email: string } | null;
+  const cls = enrollment.class as { title: string; scheduleTime: string; meetLink: string | null } | null;
+
+  if (student && cls) {
+    if (status === 'APPROVED') {
+      void sendEnrollmentApprovedEmail(student.email, student.name, cls.title, cls.scheduleTime, cls.meetLink);
+    } else {
+      void sendEnrollmentRejectedEmail(student.email, student.name, cls.title);
+    }
+  }
+
   return NextResponse.json(enrollment);
 }

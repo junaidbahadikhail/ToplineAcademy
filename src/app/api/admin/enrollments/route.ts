@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { EnrollmentStatus } from '@prisma/client';
 
 export async function GET(request: Request) {
   const session = getSession();
@@ -10,16 +9,17 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status') as EnrollmentStatus | 'ALL' | null;
+  const status = searchParams.get('status');
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: status && status !== 'ALL' ? { status } : {},
-    include: {
-      student: { select: { id: true, name: true, email: true, phone: true } },
-      class: { select: { id: true, title: true, subject: true, feePkr: true, scheduleTime: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  let query = supabaseAdmin
+    .from('Enrollment')
+    .select('*, student:User!studentId(id, name, email, phone), class:Class!classId(id, title, subject, feePkr, scheduleTime)')
+    .order('createdAt', { ascending: false });
 
-  return NextResponse.json(enrollments);
+  if (status && status !== 'ALL') {
+    query = query.eq('status', status);
+  }
+
+  const { data: enrollments } = await query;
+  return NextResponse.json(enrollments ?? []);
 }

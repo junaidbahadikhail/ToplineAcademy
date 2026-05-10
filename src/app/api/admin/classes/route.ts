@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 export async function GET(request: Request) {
@@ -9,33 +9,33 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const status = searchParams.get('status') as 'ALL' | 'PENDING' | 'APPROVED' | null;
+  const status = searchParams.get('status');
 
-  const classes = await prisma.class.findMany({
-    where:
-      status === 'PENDING'
-        ? { isApproved: false }
-        : status === 'APPROVED'
-        ? { isApproved: true }
-        : {},
-    include: {
-      instructor: { select: { id: true, name: true, email: true } },
-    },
-    orderBy: { scheduleTime: 'asc' },
-  });
+  let query = supabaseAdmin
+    .from('Class')
+    .select('*, instructor:User!instructorId(id, name, email)')
+    .order('scheduleTime', { ascending: true });
+
+  if (status === 'PENDING') query = query.eq('isApproved', false);
+  else if (status === 'APPROVED') query = query.eq('isApproved', true);
+
+  const { data: classes } = await query;
 
   return NextResponse.json(
-    classes.map((cls) => ({
-      id: cls.id,
-      title: cls.title,
-      subject: cls.subject,
-      description: cls.description,
-      scheduleTime: cls.scheduleTime.toISOString(),
-      feePkr: cls.feePkr,
-      maxStudents: cls.maxStudents,
-      status: cls.status,
-      isApproved: cls.isApproved,
-      instructor: { id: cls.instructor.id, name: cls.instructor.name, email: cls.instructor.email },
-    }))
+    (classes ?? []).map((cls) => {
+      const instructor = cls.instructor as { id: string; name: string; email: string } | null;
+      return {
+        id: cls.id,
+        title: cls.title,
+        subject: cls.subject,
+        description: cls.description,
+        scheduleTime: cls.scheduleTime,
+        feePkr: cls.feePkr,
+        maxStudents: cls.maxStudents,
+        status: cls.status,
+        isApproved: cls.isApproved,
+        instructor: instructor ?? { id: '', name: 'Unknown', email: '' },
+      };
+    })
   );
 }

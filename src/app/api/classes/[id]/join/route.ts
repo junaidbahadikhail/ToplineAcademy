@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 const DAILY_API_KEY = process.env.DAILY_API_KEY;
 const PRE_JOIN_MS = 15 * 60 * 1000;
-const SESSION_DURATION_MS = 2 * 60 * 60 * 1000; // 2-hour window
+const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
@@ -14,10 +14,11 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Video service not configured.' }, { status: 503 });
   }
 
-  const cls = await prisma.class.findUnique({
-    where: { id: params.id },
-    select: { meetLink: true, scheduleTime: true, instructorId: true },
-  });
+  const { data: cls } = await supabaseAdmin
+    .from('Class')
+    .select('meetLink, scheduleTime, instructorId')
+    .eq('id', params.id)
+    .single();
 
   if (!cls) return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
 
@@ -26,9 +27,14 @@ export async function POST(_request: Request, { params }: { params: { id: string
   const isOwner = isInstructor || isAdmin;
 
   if (session.role === 'STUDENT') {
-    const enrollment = await prisma.enrollment.findFirst({
-      where: { studentId: session.userId, classId: params.id, status: 'APPROVED' },
-    });
+    const { data: enrollment } = await supabaseAdmin
+      .from('Enrollment')
+      .select('id')
+      .eq('studentId', session.userId)
+      .eq('classId', params.id)
+      .eq('status', 'APPROVED')
+      .maybeSingle();
+
     if (!enrollment) {
       return NextResponse.json(
         { error: 'You need an approved enrollment to join this class.' },
@@ -39,9 +45,8 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  // Enforce 15-minute pre-join window
   const now = Date.now();
-  const start = cls.scheduleTime.getTime();
+  const start = new Date(cls.scheduleTime).getTime();
   const earliest = start - PRE_JOIN_MS;
   const latest = start + SESSION_DURATION_MS;
 
@@ -57,10 +62,11 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'This session has ended.' }, { status: 403 });
   }
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { name: true },
-  });
+  const { data: user } = await supabaseAdmin
+    .from('User')
+    .select('name')
+    .eq('id', session.userId)
+    .single();
 
   const roomName = cls.meetLink ?? process.env.NEXT_PUBLIC_DAILY_ROOM ?? 'toplineacademy-session';
   const expiry = Math.floor(latest / 1000);

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { hashPassword } from '@/lib/auth';
 import { sendWelcomeEmail } from '@/lib/email';
 import { RegisterSchema } from '@/lib/schemas';
@@ -15,15 +15,22 @@ export async function POST(request: Request) {
 
     const { name, email, phone, city, password, role } = parsed.data;
 
-    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (existingUser) {
+    const { data: existing } = await supabaseAdmin
+      .from('User')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (existing) {
       return NextResponse.json({ error: 'This email is already registered.' }, { status: 409 });
     }
 
     const passwordHash = await hashPassword(password);
     const assignedRole = role === 'INSTRUCTOR' ? 'INSTRUCTOR' : 'STUDENT';
-    const user = await prisma.user.create({
-      data: {
+
+    const { data: user, error } = await supabaseAdmin
+      .from('User')
+      .insert({
         name,
         email: email.toLowerCase(),
         phone,
@@ -31,8 +38,14 @@ export async function POST(request: Request) {
         passwordHash,
         role: assignedRole,
         isVerified: assignedRole === 'STUDENT',
-      },
-    });
+      })
+      .select('id, name, email, role')
+      .single();
+
+    if (error || !user) {
+      console.error('Registration insert error:', error);
+      return NextResponse.json({ error: 'Registration failed. Please check server logs or try again.' }, { status: 500 });
+    }
 
     void sendWelcomeEmail(user.email, user.name, user.role);
 

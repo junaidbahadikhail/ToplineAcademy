@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 import { sendEnrollmentConfirmationEmail } from '@/lib/email';
 import { getDemoClassById } from '@/lib/demo-classes';
@@ -27,33 +27,51 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
   const { paymentProofUrl } = parsed.data;
 
-  const existing = await prisma.enrollment.findFirst({
-    where: { studentId: session.userId, classId: params.id },
-  });
+  const { data: existing } = await supabaseAdmin
+    .from('Enrollment')
+    .select('id')
+    .eq('studentId', session.userId)
+    .eq('classId', params.id)
+    .maybeSingle();
+
   if (existing) return NextResponse.json({ error: 'Already enrolled.' }, { status: 409 });
 
-  const classItem = await prisma.class.findUnique({
-    where: { id: params.id },
-    include: { instructor: { select: { name: true } } },
-  });
+  const { data: classItem } = await supabaseAdmin
+    .from('Class')
+    .select('id, title, subject, scheduleTime, status, instructor:User!instructorId(name)')
+    .eq('id', params.id)
+    .single();
+
   if (!classItem) return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
   if (classItem.status === 'ENDED' || classItem.status === 'CANCELLED') {
     return NextResponse.json({ error: 'This class is no longer accepting enrollments.' }, { status: 400 });
   }
 
-  const student = await prisma.user.findUnique({ where: { id: session.userId } });
+  const { data: student } = await supabaseAdmin
+    .from('User')
+    .select('id, name, email')
+    .eq('id', session.userId)
+    .single();
+
   if (!student) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
 
-  const enrollment = await prisma.enrollment.create({
-    data: { studentId: session.userId, classId: params.id, paymentProofUrl },
-  });
+  const { data: enrollment, error } = await supabaseAdmin
+    .from('Enrollment')
+    .insert({ studentId: session.userId, classId: params.id, paymentProofUrl })
+    .select()
+    .single();
+
+  if (error || !enrollment) {
+    console.error('Enrollment create error:', error);
+    return NextResponse.json({ error: 'Failed to create enrollment.' }, { status: 500 });
+  }
 
   void sendEnrollmentConfirmationEmail(
     student.email,
     student.name,
     classItem.title,
     classItem.subject,
-    classItem.scheduleTime.toISOString(),
+    classItem.scheduleTime,
   );
 
   return NextResponse.json(enrollment, { status: 201 });

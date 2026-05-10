@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 export async function PATCH(request: Request) {
@@ -19,15 +19,21 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const updated = await prisma.user.update({
-    where: { id: session.userId },
-    data: {
-      ...(name && { name: name.trim() }),
-      ...(phone && { phone: phone.trim() }),
-      ...(city && { city: city.trim() }),
-    },
-    select: { id: true, name: true, email: true, phone: true, city: true, role: true, avatarUrl: true },
-  });
+  const updateData: Record<string, unknown> = {};
+  if (name) updateData.name = name.trim();
+  if (phone) updateData.phone = phone.trim();
+  if (city) updateData.city = city.trim();
+
+  const { data: updated, error } = await supabaseAdmin
+    .from('User')
+    .update(updateData)
+    .eq('id', session.userId)
+    .select('id, name, email, phone, city, role, avatarUrl')
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: 'Failed to update profile.' }, { status: 500 });
+  }
 
   return NextResponse.json({ user: updated });
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { verifyPassword, signToken } from '@/lib/auth';
 import { LoginSchema } from '@/lib/schemas';
 
@@ -13,8 +13,13 @@ export async function POST(request: Request) {
 
     const { email, password } = parsed.data;
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user) {
+    const { data: user, error } = await supabaseAdmin
+      .from('User')
+      .select('id, name, email, role, passwordHash')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (error || !user) {
       return NextResponse.json({ error: 'Invalid login credentials.' }, { status: 401 });
     }
 

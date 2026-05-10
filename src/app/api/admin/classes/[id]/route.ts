@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
+
 interface ClassParams {
-  params: {
-    id: string;
-  };
+  params: { id: string };
 }
 
 export async function PATCH(request: Request, { params }: ClassParams) {
@@ -19,18 +18,26 @@ export async function PATCH(request: Request, { params }: ClassParams) {
     return NextResponse.json({ error: 'Missing approval flag.' }, { status: 400 });
   }
 
-  const classItem = await prisma.class.findUnique({ where: { id: params.id } });
-  if (!classItem) {
+  const { data: existing } = await supabaseAdmin
+    .from('Class')
+    .select('id')
+    .eq('id', params.id)
+    .single();
+
+  if (!existing) {
     return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
   }
 
-  const updated = await prisma.class.update({
-    where: { id: params.id },
-    data: { isApproved },
-  });
+  const { data: updated, error } = await supabaseAdmin
+    .from('Class')
+    .update({ isApproved })
+    .eq('id', params.id)
+    .select('id, isApproved')
+    .single();
 
-  return NextResponse.json({
-    id: updated.id,
-    isApproved: updated.isApproved,
-  });
+  if (error) {
+    return NextResponse.json({ error: 'Failed to update class.' }, { status: 500 });
+  }
+
+  return NextResponse.json(updated);
 }

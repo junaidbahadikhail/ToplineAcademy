@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 import { sendInstructorApprovedEmail } from '@/lib/email';
 
@@ -12,19 +12,28 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   const body = await request.json();
   const { role, isVerified, isActive } = body;
 
-  const before = await prisma.user.findUnique({ where: { id: params.id } });
+  const { data: before } = await supabaseAdmin
+    .from('User')
+    .select('role, isVerified')
+    .eq('id', params.id)
+    .single();
 
-  const user = await prisma.user.update({
-    where: { id: params.id },
-    data: {
-      ...(role !== undefined && { role }),
-      ...(isVerified !== undefined && { isVerified }),
-      ...(isActive !== undefined && { isActive }),
-    },
-    select: { id: true, name: true, email: true, role: true, isVerified: true, isActive: true },
-  });
+  const updateData: Record<string, unknown> = {};
+  if (role !== undefined) updateData.role = role;
+  if (isVerified !== undefined) updateData.isVerified = isVerified;
+  if (isActive !== undefined) updateData.isActive = isActive;
 
-  // Send instructor approval email when an instructor gets verified
+  const { data: user, error } = await supabaseAdmin
+    .from('User')
+    .update(updateData)
+    .eq('id', params.id)
+    .select('id, name, email, role, isVerified, isActive')
+    .single();
+
+  if (error || !user) {
+    return NextResponse.json({ error: 'Failed to update user.' }, { status: 500 });
+  }
+
   if (
     isVerified === true &&
     before &&

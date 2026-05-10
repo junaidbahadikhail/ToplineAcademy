@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 export async function GET() {
@@ -8,12 +8,18 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const [totalStudents, totalInstructors, pendingEnrollments, pendingClasses, totalClasses] = await Promise.all([
-    prisma.user.count({ where: { role: 'STUDENT' } }),
-    prisma.user.count({ where: { role: 'INSTRUCTOR' } }),
-    prisma.enrollment.count({ where: { status: 'PENDING' } }),
-    prisma.class.count({ where: { isApproved: false } }),
-    prisma.class.count(),
+  const [
+    { count: totalStudents },
+    { count: totalInstructors },
+    { count: pendingEnrollments },
+    { count: pendingClasses },
+    { count: totalClasses },
+  ] = await Promise.all([
+    supabaseAdmin.from('User').select('*', { count: 'exact', head: true }).eq('role', 'STUDENT'),
+    supabaseAdmin.from('User').select('*', { count: 'exact', head: true }).eq('role', 'INSTRUCTOR'),
+    supabaseAdmin.from('Enrollment').select('*', { count: 'exact', head: true }).eq('status', 'PENDING'),
+    supabaseAdmin.from('Class').select('*', { count: 'exact', head: true }).eq('isApproved', false),
+    supabaseAdmin.from('Class').select('*', { count: 'exact', head: true }),
   ]);
 
   return NextResponse.json({ totalStudents, totalInstructors, pendingEnrollments, pendingClasses, totalClasses });

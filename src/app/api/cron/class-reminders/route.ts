@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { sendSessionStartingEmail } from '@/lib/email';
 
 // Vercel Cron invokes via GET. Finds classes starting in ~1 hour and emails approved students.
@@ -12,28 +12,22 @@ export async function GET(request: Request) {
   }
 
   const now = new Date();
-  const windowStart = new Date(now.getTime() + 55 * 60 * 1000);  // 55 min from now
-  const windowEnd = new Date(now.getTime() + 65 * 60 * 1000);    // 65 min from now
+  const windowStart = new Date(now.getTime() + 55 * 60 * 1000).toISOString();
+  const windowEnd = new Date(now.getTime() + 65 * 60 * 1000).toISOString();
 
-  const classes = await prisma.class.findMany({
-    where: {
-      status: 'UPCOMING',
-      scheduleTime: { gte: windowStart, lte: windowEnd },
-    },
-    include: {
-      enrollments: {
-        where: { status: 'APPROVED' },
-        include: {
-          student: { select: { name: true, email: true } },
-        },
-      },
-    },
-  });
+  const { data: classes } = await supabaseAdmin
+    .from('Class')
+    .select('id, title, meetLink, Enrollment!classId(student:User!studentId(name, email))')
+    .eq('status', 'UPCOMING')
+    .gte('scheduleTime', windowStart)
+    .lte('scheduleTime', windowEnd);
 
   let sent = 0;
 
-  for (const cls of classes) {
-    for (const enrollment of cls.enrollments) {
+  for (const cls of classes ?? []) {
+    const enrollments = (cls.Enrollment as unknown as { student: { name: string; email: string } | null }[] | null) ?? [];
+    for (const enrollment of enrollments) {
+      if (!enrollment.student) continue;
       void sendSessionStartingEmail(
         enrollment.student.email,
         enrollment.student.name,
@@ -46,8 +40,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    classesChecked: classes.length,
+    classesChecked: (classes ?? []).length,
     remindersSent: sent,
-    window: { from: windowStart.toISOString(), to: windowEnd.toISOString() },
+    window: { from: windowStart, to: windowEnd },
   });
 }

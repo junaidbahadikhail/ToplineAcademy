@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 const resendClient = new Resend(process.env.RESEND_API_KEY);
@@ -39,10 +39,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const databaseStatus = await prisma
-    .$queryRaw`SELECT 1 as result`
-    .then(() => 'connected')
-    .catch(() => 'failed');
+  const { error: dbError } = await supabaseAdmin.from('User').select('id').limit(1);
+  const databaseStatus = dbError ? 'failed' : 'connected';
 
   const [resendStatus, dailyStatus] = await Promise.all([getResendStatus(), getDailyStatus()]);
 

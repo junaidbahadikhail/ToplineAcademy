@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 export async function GET() {
@@ -7,18 +7,17 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.role !== 'STUDENT') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: { studentId: session.userId },
-    include: {
-      class: {
-        include: {
-          instructor: { select: { name: true } },
-          _count: { select: { enrollments: true } },
-        },
-      },
-    },
-    orderBy: { class: { scheduleTime: 'asc' } },
+  const { data: enrollments } = await supabaseAdmin
+    .from('Enrollment')
+    .select('*, class:Class!classId(*, instructor:User!instructorId(name))')
+    .eq('studentId', session.userId);
+
+  // Sort by class scheduleTime ascending
+  const sorted = (enrollments ?? []).sort((a, b) => {
+    const aTime = new Date((a.class as { scheduleTime: string } | null)?.scheduleTime ?? 0).getTime();
+    const bTime = new Date((b.class as { scheduleTime: string } | null)?.scheduleTime ?? 0).getTime();
+    return aTime - bTime;
   });
 
-  return NextResponse.json(enrollments);
+  return NextResponse.json(sorted);
 }

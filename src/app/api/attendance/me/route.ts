@@ -1,22 +1,36 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
-// GET: student fetches their own attendance history
 export async function GET() {
   const session = getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.role !== 'STUDENT') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const records = await prisma.attendance.findMany({
-    where: { enrollment: { studentId: session.userId } },
-    include: {
-      class: {
-        select: { id: true, title: true, subject: true, scheduleTime: true },
-      },
-    },
-    orderBy: { class: { scheduleTime: 'desc' } },
+  // Get student's enrollment IDs first
+  const { data: enrollments } = await supabaseAdmin
+    .from('Enrollment')
+    .select('id')
+    .eq('studentId', session.userId);
+
+  if (!enrollments || enrollments.length === 0) {
+    return NextResponse.json([]);
+  }
+
+  const enrollmentIds = enrollments.map((e) => e.id);
+
+  const { data: records } = await supabaseAdmin
+    .from('Attendance')
+    .select('*, class:Class!classId(id, title, subject, scheduleTime)')
+    .in('enrollmentId', enrollmentIds)
+    .order('classId', { ascending: false });
+
+  // Sort by class scheduleTime descending in memory
+  const sorted = (records ?? []).sort((a, b) => {
+    const aTime = new Date((a.class as { scheduleTime: string } | null)?.scheduleTime ?? 0).getTime();
+    const bTime = new Date((b.class as { scheduleTime: string } | null)?.scheduleTime ?? 0).getTime();
+    return bTime - aTime;
   });
 
-  return NextResponse.json(records);
+  return NextResponse.json(sorted);
 }

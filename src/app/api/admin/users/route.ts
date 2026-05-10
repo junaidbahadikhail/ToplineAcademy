@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { UserRole } from '@prisma/client';
 
 export async function GET(request: Request) {
   const session = getSession();
@@ -10,24 +9,33 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const role = searchParams.get('role') as UserRole | null;
+  const role = searchParams.get('role');
 
-  const users = await prisma.user.findMany({
-    where: role ? { role } : { role: { in: ['STUDENT', 'INSTRUCTOR'] } },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      city: true,
-      role: true,
-      isVerified: true,
-      isActive: true,
-      createdAt: true,
-      _count: { select: { enrollments: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  let query = supabaseAdmin
+    .from('User')
+    .select('id, name, email, phone, city, role, isVerified, isActive, createdAt, Enrollment!studentId(id)')
+    .order('createdAt', { ascending: false });
 
-  return NextResponse.json(users);
+  if (role) {
+    query = query.eq('role', role);
+  } else {
+    query = query.in('role', ['STUDENT', 'INSTRUCTOR']);
+  }
+
+  const { data: users } = await query;
+
+  const result = (users ?? []).map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    phone: u.phone,
+    city: u.city,
+    role: u.role,
+    isVerified: u.isVerified,
+    isActive: u.isActive,
+    createdAt: u.createdAt,
+    _count: { enrollments: (u.Enrollment as { id: string }[] | null)?.length ?? 0 },
+  }));
+
+  return NextResponse.json(result);
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
 export async function GET() {
@@ -8,15 +8,24 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const classes = await prisma.class.findMany({
-    where: { instructorId: session.userId },
-    include: {
-      _count: { select: { enrollments: true } },
-      enrollments: { where: { status: 'APPROVED' }, select: { id: true } },
-      meetingNote: { select: { summary: true, keyTopics: true, recordingId: true } },
-    },
-    orderBy: { scheduleTime: 'asc' },
+  const { data: classes } = await supabaseAdmin
+    .from('Class')
+    .select('*, Enrollment(id, status), MeetingNote(summary, keyTopics, recordingId)')
+    .eq('instructorId', session.userId)
+    .order('scheduleTime', { ascending: true });
+
+  const result = (classes ?? []).map((cls) => {
+    const allEnrollments = (cls.Enrollment as { id: string; status: string }[] | null) ?? [];
+    const approvedEnrollments = allEnrollments.filter((e) => e.status === 'APPROVED');
+    return {
+      ...cls,
+      _count: { enrollments: allEnrollments.length },
+      enrollments: approvedEnrollments,
+      meetingNote: cls.MeetingNote ?? null,
+      Enrollment: undefined,
+      MeetingNote: undefined,
+    };
   });
 
-  return NextResponse.json(classes);
+  return NextResponse.json(result);
 }
