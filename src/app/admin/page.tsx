@@ -201,6 +201,14 @@ export default function AdminPage() {
     fetchStats();
   };
 
+  const viewProof = async (path: string) => {
+    const res = await fetch(`/api/storage/payment-proof?path=${encodeURIComponent(path)}`);
+    if (res.ok) {
+      const { signedUrl } = await res.json();
+      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const patchClassApproval = async (id: string, approve: boolean) => {
     setActionLoading(id);
     await fetch(`/api/admin/classes/${id}`, {
@@ -666,6 +674,7 @@ export default function AdminPage() {
                     <th className="px-6 py-3 font-semibold text-slate-600">Student</th>
                     <th className="px-6 py-3 font-semibold text-slate-600">Class</th>
                     <th className="px-6 py-3 font-semibold text-slate-600">Fee (PKR)</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Proof</th>
                     <th className="px-6 py-3 font-semibold text-slate-600">Status</th>
                     <th className="px-6 py-3 font-semibold text-slate-600">Applied</th>
                     <th className="px-6 py-3 font-semibold text-slate-600">Actions</th>
@@ -674,7 +683,7 @@ export default function AdminPage() {
                 <tbody>
                   {enrollments.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-slate-400">No enrollments found.</td>
+                      <td colSpan={7} className="px-6 py-10 text-center text-slate-400">No enrollments found.</td>
                     </tr>
                   )}
                   {enrollments.map((enrollment) => (
@@ -695,6 +704,18 @@ export default function AdminPage() {
                       </td>
                       <td className="px-6 py-4 font-semibold text-slate-700">
                         {enrollment.class.feePkr.toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        {enrollment.paymentProofUrl ? (
+                          <button
+                            onClick={() => viewProof(enrollment.paymentProofUrl!)}
+                            className="text-xs font-semibold text-teal-700 underline hover:text-teal-950"
+                          >
+                            View proof
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-400">None</span>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusBadge[enrollment.status]}`}>

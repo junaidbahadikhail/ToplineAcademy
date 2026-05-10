@@ -47,7 +47,10 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
   const [role, setRole] = useState<string | null>(null);
   const [enrollStatus, setEnrollStatus] = useState<EnrollStatus>('none');
   const [joining, setJoining] = useState(false);
+  const [joinToken, setJoinToken] = useState<string | null>(null);
+  const [joinRoomName, setJoinRoomName] = useState<string | null>(null);
   const [enrolling, setEnrolling] = useState(false);
+  const [proofFile, setProofFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [meetingNote, setMeetingNote] = useState<MeetingNote | null>(null);
@@ -82,6 +85,19 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
     load();
   }, [params.id]);
 
+  const joinSession = async () => {
+    setError(null);
+    const res = await fetch(`/api/classes/${params.id}/join`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || 'Unable to join session.');
+      return;
+    }
+    setJoinToken(data.token);
+    setJoinRoomName(data.roomName);
+    setJoining(true);
+  };
+
   const router = useRouter();
 
   const enroll = async () => {
@@ -90,9 +106,50 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
       return;
     }
 
+    if (!proofFile) {
+      setError('Please upload your payment screenshot before submitting.');
+      return;
+    }
+
     setEnrolling(true);
     setError(null);
-    const res = await fetch(`/api/classes/${params.id}/enroll`, { method: 'POST' });
+
+    // Step 1: get signed upload URL from server
+    const uploadRes = await fetch('/api/storage/payment-proof', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classId: params.id, filename: proofFile.name }),
+    });
+
+    if (!uploadRes.ok) {
+      const d = await uploadRes.json();
+      setError(d.error || 'Failed to prepare upload.');
+      setEnrolling(false);
+      return;
+    }
+
+    const { signedUrl, path } = await uploadRes.json();
+
+    // Step 2: PUT file directly to Supabase Storage
+    const putRes = await fetch(signedUrl, {
+      method: 'PUT',
+      body: proofFile,
+      headers: { 'Content-Type': proofFile.type || 'application/octet-stream' },
+    });
+
+    if (!putRes.ok) {
+      setError('Upload failed. Please try again with a smaller image (under 5 MB).');
+      setEnrolling(false);
+      return;
+    }
+
+    // Step 3: create enrollment with proof path
+    const res = await fetch(`/api/classes/${params.id}/enroll`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentProofUrl: path }),
+    });
+
     const data = await res.json();
     if (!res.ok) {
       if (res.status === 401) {
@@ -103,6 +160,7 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
       setError(data.error || 'Unable to enroll.');
     } else {
       setEnrollStatus('pending');
+      setProofFile(null);
     }
     setEnrolling(false);
   };
@@ -122,7 +180,7 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
   );
 
   const isLive = cls.status === 'LIVE_NOW';
-  const canJoin = isLive && enrollStatus === 'approved' && joining;
+  const canJoin = joining && !!joinToken && !!joinRoomName;
 
   return (
     <main>
@@ -130,15 +188,20 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
       <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
 
         {/* Live video */}
-        {canJoin && cls.meetLink && (
+        {canJoin && joinRoomName && (
           <div className="mb-8">
             <div className="mb-3 flex items-center justify-between">
               <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
                 <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Live session
               </span>
-              <button onClick={() => setJoining(false)} className="text-sm text-slate-500 underline">Leave</button>
+              <button
+                onClick={() => { setJoining(false); setJoinToken(null); setJoinRoomName(null); }}
+                className="text-sm text-slate-500 underline"
+              >
+                Leave
+              </button>
             </div>
-            <DailyRoom roomName={cls.meetLink} />
+            <DailyRoom roomName={joinRoomName} token={joinToken ?? undefined} />
           </div>
         )}
 
@@ -201,15 +264,34 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
                   )}
 
                   {role === 'STUDENT' && enrollStatus === 'none' && (
-                    <div className="mt-4">
-                      <p className="text-sm text-slate-500 mb-3">Submit your enrollment. Admin will review and approve it.</p>
-                      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+                    <div className="mt-4 space-y-4">
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <p className="text-sm font-semibold text-amber-800">How to enroll</p>
+                        <ol className="mt-2 space-y-1 text-sm text-amber-700 list-decimal list-inside">
+                          <li>Transfer <strong>PKR {cls.feePkr.toLocaleString()}</strong> via EasyPaisa, JazzCash, or bank transfer</li>
+                          <li>Take a screenshot of your payment confirmation</li>
+                          <li>Upload it below and submit — admin will approve within 24 hours</li>
+                        </ol>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-700 mb-2">Payment screenshot <span className="text-red-500">*</span></p>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
+                          onChange={(e) => { setProofFile(e.target.files?.[0] ?? null); setError(null); }}
+                          className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-teal-950 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-teal-900 cursor-pointer"
+                        />
+                        {proofFile && (
+                          <p className="mt-1 text-xs text-teal-700">Selected: {proofFile.name}</p>
+                        )}
+                      </div>
+                      {error && <p className="text-sm text-red-600">{error}</p>}
                       <button
                         onClick={enroll}
-                        disabled={enrolling}
-                        className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60"
+                        disabled={enrolling || !proofFile}
+                        className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        {enrolling ? 'Enrolling…' : 'Enroll now'}
+                        {enrolling ? 'Submitting…' : 'Submit enrollment'}
                       </button>
                     </div>
                   )}
@@ -239,8 +321,9 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
                   {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
                     <div className="mt-4">
                       <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
+                      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
                       <button
-                        onClick={() => setJoining(true)}
+                        onClick={joinSession}
                         className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
                       >
                         Join live session →

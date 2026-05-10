@@ -23,8 +23,16 @@ interface RecordingState {
   recordingId: string | null;
   phase: 'idle' | 'recording' | 'stopped' | 'processing' | 'done';
   summary?: string;
-  notionPageId?: string;
   error?: string;
+}
+
+interface AttendanceStudent {
+  id: string;
+  enrollmentId: string;
+  name: string;
+  email: string;
+  attended: boolean;
+  saved: boolean;
 }
 
 const statusColor: Record<string, string> = {
@@ -60,6 +68,9 @@ export default function InstructorDashboardPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [recordings, setRecordings] = useState<Record<string, RecordingState>>({});
+  const [attendanceOpen, setAttendanceOpen] = useState<string | null>(null);
+  const [attendanceData, setAttendanceData] = useState<Record<string, AttendanceStudent[]>>({});
+  const [attendanceSaving, setAttendanceSaving] = useState<string | null>(null);
 
   const fetchClasses = () => {
     fetch('/api/dashboard/instructor')
@@ -152,7 +163,7 @@ export default function InstructorDashboardPage() {
       } else {
         setRecordings((prev) => ({
           ...prev,
-          [classId]: { ...prev[classId], phase: 'done', summary: data.summary, notionPageId: data.notionPageId },
+          [classId]: { ...prev[classId], phase: 'done', summary: data.summary },
         }));
       }
     } catch (err: unknown) {
@@ -161,6 +172,57 @@ export default function InstructorDashboardPage() {
         [classId]: { ...prev[classId], phase: prev[classId]?.phase === 'processing' ? 'stopped' : 'idle', error: (err as Error).message },
       }));
     }
+  };
+
+  const openAttendance = async (classId: string) => {
+    if (attendanceOpen === classId) { setAttendanceOpen(null); return; }
+    setAttendanceOpen(classId);
+    if (attendanceData[classId]) return; // already loaded
+    const res = await fetch(`/api/attendance/${classId}`);
+    if (!res.ok) return;
+    const rows = await res.json() as Array<{
+      id: string;
+      student: { id: string; name: string; email: string };
+      attendance: { attended: boolean } | null;
+    }>;
+    setAttendanceData((prev) => ({
+      ...prev,
+      [classId]: rows.map((r) => ({
+        id: r.student.id,
+        enrollmentId: r.id,
+        name: r.student.name,
+        email: r.student.email,
+        attended: r.attendance?.attended ?? false,
+        saved: !!r.attendance,
+      })),
+    }));
+  };
+
+  const toggleAttended = (classId: string, enrollmentId: string) => {
+    setAttendanceData((prev) => ({
+      ...prev,
+      [classId]: (prev[classId] ?? []).map((s) =>
+        s.enrollmentId === enrollmentId ? { ...s, attended: !s.attended } : s
+      ),
+    }));
+  };
+
+  const saveAttendance = async (classId: string) => {
+    setAttendanceSaving(classId);
+    const records = (attendanceData[classId] ?? []).map((s) => ({
+      enrollmentId: s.enrollmentId,
+      attended: s.attended,
+    }));
+    await fetch(`/api/attendance/${classId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records }),
+    });
+    setAttendanceData((prev) => ({
+      ...prev,
+      [classId]: (prev[classId] ?? []).map((s) => ({ ...s, saved: true })),
+    }));
+    setAttendanceSaving(null);
   };
 
   const createClass = async () => {
@@ -436,6 +498,14 @@ export default function InstructorDashboardPage() {
                           </button>
                         </>
                       )}
+                      {cls.status === 'ENDED' && (
+                        <button
+                          onClick={() => openAttendance(cls.id)}
+                          className="rounded-full border border-teal-950 px-4 py-1.5 text-xs font-semibold text-teal-950 hover:bg-teal-50"
+                        >
+                          {attendanceOpen === cls.id ? 'Close attendance' : 'Mark attendance'}
+                        </button>
+                      )}
                       {cls.status === 'ENDED' && recordings[cls.id]?.phase === 'stopped' && (
                         <button
                           onClick={() => recordingAction(cls.id, 'process')}
@@ -462,6 +532,48 @@ export default function InstructorDashboardPage() {
                       <div className="mt-3 rounded-xl bg-teal-50 border border-teal-200 p-3">
                         <p className="text-xs font-semibold text-teal-800 mb-1">Session Summary</p>
                         <p className="text-xs text-teal-700">{recordings[cls.id]?.summary}</p>
+                      </div>
+                    )}
+
+                    {/* Attendance panel */}
+                    {attendanceOpen === cls.id && (
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="text-sm font-semibold text-slate-800 mb-3">Attendance — {cls.title}</p>
+                        {!attendanceData[cls.id] ? (
+                          <p className="text-xs text-slate-400">Loading…</p>
+                        ) : attendanceData[cls.id].length === 0 ? (
+                          <p className="text-xs text-slate-400">No approved students in this class.</p>
+                        ) : (
+                          <>
+                            <div className="space-y-2 mb-4">
+                              {attendanceData[cls.id].map((s) => (
+                                <div key={s.enrollmentId} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-900">{s.name}</p>
+                                    <p className="text-xs text-slate-400">{s.email}</p>
+                                  </div>
+                                  <button
+                                    onClick={() => toggleAttended(cls.id, s.enrollmentId)}
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                                      s.attended
+                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                    }`}
+                                  >
+                                    {s.attended ? 'Present' : 'Absent'}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                            <button
+                              onClick={() => saveAttendance(cls.id)}
+                              disabled={attendanceSaving === cls.id}
+                              className="rounded-full bg-teal-950 px-4 py-2 text-xs font-semibold text-white hover:bg-teal-900 disabled:opacity-60"
+                            >
+                              {attendanceSaving === cls.id ? 'Saving…' : 'Save attendance'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

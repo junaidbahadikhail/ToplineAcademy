@@ -20,6 +20,13 @@ interface Enrollment {
   };
 }
 
+interface AttendanceRecord {
+  id: string;
+  attended: boolean;
+  markedAt: string | null;
+  class: { id: string; title: string; subject: string; scheduleTime: string };
+}
+
 const enrollBadge: Record<string, string> = {
   APPROVED: 'bg-green-50 text-green-700 border-green-200',
   PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -77,6 +84,7 @@ function ScheduleCalendar({ enrollments }: { enrollments: Enrollment[] }) {
 export default function StudentDashboardPage() {
   const [_user, setUser] = useState<{ userId: string; email: string } | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
@@ -84,13 +92,15 @@ export default function StudentDashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [meRes, dataRes] = await Promise.all([
+        const [meRes, dataRes, attRes] = await Promise.all([
           fetch('/api/auth/me'),
           fetch('/api/dashboard/student'),
+          fetch('/api/attendance/me'),
         ]);
 
         const me = meRes.ok ? await meRes.json() : { user: null };
         const data = dataRes.ok ? await dataRes.json() : [];
+        const attData = attRes.ok ? await attRes.json() : [];
 
         if (!me.user || me.user.role !== 'STUDENT') {
           setAuthorized(false);
@@ -100,6 +110,7 @@ export default function StudentDashboardPage() {
         setUser(me.user);
         setAuthorized(true);
         setEnrollments(Array.isArray(data) ? data : []);
+        setAttendance(Array.isArray(attData) ? attData : []);
       } catch {
         setAuthorized(false);
       } finally {
@@ -251,10 +262,40 @@ export default function StudentDashboardPage() {
             </div>
           </div>
 
-          {/* Upcoming schedule */}
-          <div>
-            <h2 className="mb-4 text-lg font-semibold text-slate-900">Upcoming Schedule</h2>
-            <ScheduleCalendar enrollments={enrollments} />
+          {/* Upcoming schedule + attendance */}
+          <div className="space-y-8">
+            <div>
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">Upcoming Schedule</h2>
+              <ScheduleCalendar enrollments={enrollments} />
+            </div>
+
+            {attendance.length > 0 && (
+              <div>
+                <h2 className="mb-4 text-lg font-semibold text-slate-900">Attendance History</h2>
+                <div className="space-y-2">
+                  {attendance.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-slate-900">{a.class.title}</p>
+                        <p className="text-xs text-slate-400">
+                          {new Date(a.class.scheduleTime).toLocaleDateString('en-PK', {
+                            day: 'numeric', month: 'short', year: 'numeric',
+                            timeZone: 'Asia/Karachi',
+                          })}
+                        </p>
+                      </div>
+                      <span className={`ml-3 shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
+                        a.attended
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-red-50 text-red-600 border border-red-200'
+                      }`}>
+                        {a.attended ? 'Present' : 'Absent'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </section>

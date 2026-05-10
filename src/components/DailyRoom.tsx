@@ -5,9 +5,10 @@ import DailyIframe from '@daily-co/daily-js';
 
 interface DailyRoomProps {
   roomName: string;
+  token?: string;
 }
 
-export function DailyRoom({ roomName }: DailyRoomProps) {
+export function DailyRoom({ roomName, token }: DailyRoomProps) {
   const frameRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -21,6 +22,7 @@ export function DailyRoom({ roomName }: DailyRoomProps) {
 
     const callFrame = DailyIframe.createFrame(frameRef.current, {
       url: `https://${domain}/${roomName}`,
+      token,
       showLeaveButton: true,
       iframeStyle: {
         position: 'relative',
@@ -32,7 +34,7 @@ export function DailyRoom({ roomName }: DailyRoomProps) {
     return () => {
       callFrame.destroy();
     };
-  }, [roomName]);
+  }, [roomName, token]);
 
   return <div ref={frameRef} className="h-[650px] rounded-3xl border border-slate-200 bg-black" />;
 }

@@ -4,7 +4,7 @@ import { getSession } from '@/lib/get-session';
 import { sendEnrollmentConfirmationEmail } from '@/lib/email';
 import { getDemoClassById } from '@/lib/demo-classes';
 
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (session.role !== 'STUDENT') return NextResponse.json({ error: 'Only students can enroll.' }, { status: 403 });
@@ -12,6 +12,16 @@ export async function POST(_request: Request, { params }: { params: { id: string
   if (getDemoClassById(params.id)) {
     return NextResponse.json(
       { error: 'demo', message: 'This is a demo class. To enroll in real classes, please register on Topline Academy.' },
+      { status: 400 }
+    );
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const { paymentProofUrl } = body as { paymentProofUrl?: string };
+
+  if (!paymentProofUrl) {
+    return NextResponse.json(
+      { error: 'Payment proof is required. Please upload a screenshot of your bank transfer.' },
       { status: 400 }
     );
   }
@@ -34,7 +44,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
   if (!student) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
 
   const enrollment = await prisma.enrollment.create({
-    data: { studentId: session.userId, classId: params.id },
+    data: { studentId: session.userId, classId: params.id, paymentProofUrl },
   });
 
   void sendEnrollmentConfirmationEmail(
