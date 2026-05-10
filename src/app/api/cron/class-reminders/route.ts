@@ -2,9 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendSessionStartingEmail } from '@/lib/email';
 
-// Vercel Cron calls this every hour.
-// Finds classes starting in the next 60 minutes and emails approved students.
-export async function POST(request: Request) {
+// Vercel Cron invokes via GET. Finds classes starting in ~1 hour and emails approved students.
+export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
