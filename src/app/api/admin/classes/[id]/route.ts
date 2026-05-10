@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/get-session';
-import { updateClassStatusInNotion } from '@/lib/notion';
-
 interface ClassParams {
   params: {
     id: string;
@@ -30,8 +28,6 @@ export async function PATCH(request: Request, { params }: ClassParams) {
     where: { id: params.id },
     data: { isApproved },
   });
-
-  void updateClassStatusInNotion(params.id, isApproved ? 'Approved' : 'Pending');
 
   return NextResponse.json({
     id: updated.id,

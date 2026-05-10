@@ -6,7 +6,6 @@ import {
   waitForRecording,
   transcribeRecording,
   analyzeTranscript,
-  saveMeetingNotesToNotion,
 } from '@/lib/meeting-processor';
 import { getDemoClassById } from '@/lib/demo-classes';
 
@@ -81,26 +80,6 @@ export async function POST(request: Request, { params }: Params) {
         quizQuestions: analysis.quizQuestions ?? [],
       },
     });
-
-    // Optional: export to Notion CRM (fire-and-forget)
-    void saveMeetingNotesToNotion({
-      classId: params.id,
-      className: classItem.title,
-      subject: classItem.subject,
-      instructorName: classItem.instructor.name,
-      sessionDate: classItem.scheduleTime.toISOString(),
-      duration: note.duration ?? 0,
-      summary: analysis.summary,
-      keyTopics: analysis.keyTopics,
-      actionItems: analysis.actionItems,
-      importantNotes: analysis.importantNotes,
-      quizQuestions: analysis.quizQuestions ?? [],
-      transcript,
-    }).then((notionPageId) => {
-      if (notionPageId) {
-        void prisma.meetingNote.update({ where: { classId: params.id }, data: { notionPageId } });
-      }
-    }).catch(() => { /* Notion optional — ignore failures */ });
 
     return NextResponse.json({
       status: 'processed',

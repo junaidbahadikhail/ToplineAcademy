@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/get-session';
 import { sendEnrollmentConfirmationEmail } from '@/lib/email';
-import { syncEnrollmentToNotion } from '@/lib/notion';
 import { getDemoClassById } from '@/lib/demo-classes';
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
@@ -38,7 +37,6 @@ export async function POST(_request: Request, { params }: { params: { id: string
     data: { studentId: session.userId, classId: params.id },
   });
 
-  // Fire-and-forget: email + Notion sync
   void sendEnrollmentConfirmationEmail(
     student.email,
     student.name,
@@ -46,17 +44,6 @@ export async function POST(_request: Request, { params }: { params: { id: string
     classItem.subject,
     classItem.scheduleTime.toISOString(),
   );
-  void syncEnrollmentToNotion({
-    studentName: student.name,
-    studentEmail: student.email,
-    studentPhone: student.phone,
-    className: classItem.title,
-    subject: classItem.subject,
-    feePkr: classItem.feePkr,
-    scheduleTime: classItem.scheduleTime.toISOString(),
-    status: 'Pending Approval',
-    enrollmentId: enrollment.id,
-  });
 
   return NextResponse.json(enrollment, { status: 201 });
 }

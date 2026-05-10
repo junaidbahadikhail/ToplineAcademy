@@ -53,6 +53,7 @@ async function main() {
       maxStudents: 30,
       feePkr: 2500,
       status: 'UPCOMING',
+      isApproved: true,
       meetLink: 'toplineacademy-ai',
     },
   });
@@ -71,6 +72,7 @@ async function main() {
       maxStudents: 25,
       feePkr: 3000,
       status: 'UPCOMING',
+      isApproved: true,
       meetLink: 'toplineacademy-python',
     },
   });
@@ -89,6 +91,7 @@ async function main() {
       maxStudents: 20,
       feePkr: 3500,
       status: 'UPCOMING',
+      isApproved: true,
       meetLink: 'toplineacademy-web',
     },
   });
@@ -107,6 +110,7 @@ async function main() {
       maxStudents: 20,
       feePkr: 4000,
       status: 'UPCOMING',
+      isApproved: true,
       meetLink: 'toplineacademy-nlp',
     },
   });

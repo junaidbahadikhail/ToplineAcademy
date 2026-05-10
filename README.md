@@ -65,3 +65,7 @@ Copy `.env.example` to `.env` and set these values:
 - Manual payment proof upload
 - Student enrollment and approval workflow
 - Email notifications and PKT timezone handling
+
+## Beginner guide
+
+For a developer-friendly onboarding guide with setup steps, architecture notes, and screenshots, see `docs/BEGINNER_GUIDE.md`.

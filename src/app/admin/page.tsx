@@ -73,14 +73,14 @@ export default function AdminPage() {
   const [classes, setClasses] = useState<AdminClass[]>([]);
   const [approvedClasses, setApprovedClasses] = useState<AdminClass[]>([]);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
-  const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentFilter>('PENDING');
+  const [enrollmentFilter, _setEnrollmentFilter] = useState<EnrollmentFilter>('PENDING');
   const [classFilter, setClassFilter] = useState<ClassFilter>('PENDING');
   const [createVisible, setCreateVisible] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm, setCreateForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '25', feePkr: '3000' });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [healthStatus, setHealthStatus] = useState<{ database: string; resend: string; daily: string; notion: string; openai: string } | null>(null);
+  const [healthStatus, setHealthStatus] = useState<{ database: string; resend: string; daily: string; openai: string } | null>(null);
   const [defaultTabSet, setDefaultTabSet] = useState(false);
 
   useEffect(() => {
@@ -110,10 +110,9 @@ export default function AdminPage() {
         database: data.database || 'unknown',
         resend: data.resend || 'unknown',
         daily: data.daily || 'unknown',
-        notion: data.notion || 'unknown',
         openai: data.openai || 'unknown',
       }))
-      .catch(() => setHealthStatus({ database: 'failed', resend: 'failed', daily: 'failed', notion: 'failed', openai: 'failed' }));
+      .catch(() => setHealthStatus({ database: 'failed', resend: 'failed', daily: 'failed', openai: 'failed' }));
   }, []);
 
   const fetchUsers = useCallback((role: RoleFilter = 'ALL') => {
@@ -172,10 +171,6 @@ export default function AdminPage() {
     fetchUsers(role);
   };
 
-  const handleEnrollmentFilter = (status: EnrollmentFilter) => {
-    setEnrollmentFilter(status);
-    fetchEnrollments(status);
-  };
 
   const handleClassFilter = (status: ClassFilter) => {
     setClassFilter(status);
@@ -429,12 +424,11 @@ export default function AdminPage() {
               <p className="mt-1 text-xs text-slate-400">Live status for platform integrations.</p>
             </div>
           </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: 'Database', key: 'database' as const },
               { label: 'Resend (Email)', key: 'resend' as const },
               { label: 'Daily (Video)', key: 'daily' as const },
-              { label: 'Notion (CRM)', key: 'notion' as const },
               { label: 'OpenAI (AI Notes)', key: 'openai' as const },
             ].map(({ label, key }) => {
               const val = healthStatus?.[key] ?? 'loading';

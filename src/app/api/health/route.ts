@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/get-session';
 
 const resendClient = new Resend(process.env.RESEND_API_KEY);
 
@@ -28,18 +29,16 @@ async function getDailyStatus() {
   }
 }
 
-function getNotionStatus() {
-  if (!process.env.NOTION_API_KEY) return 'missing';
-  const dbs = [process.env.NOTION_ENROLLMENTS_DB, process.env.NOTION_CLASSES_DB, process.env.NOTION_MEETINGS_DB];
-  if (dbs.some((d) => !d)) return 'partially configured';
-  return 'configured';
-}
-
 function getOpenAIStatus() {
   return process.env.OPENAI_API_KEY ? 'configured' : 'missing';
 }
 
 export async function GET() {
+  const session = getSession();
+  if (!session || session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
   const databaseStatus = await prisma
     .$queryRaw`SELECT 1 as result`
     .then(() => 'connected')
@@ -52,7 +51,6 @@ export async function GET() {
     database: databaseStatus,
     resend: resendStatus,
     daily: dailyStatus,
-    notion: getNotionStatus(),
     openai: getOpenAIStatus(),
   });
 }

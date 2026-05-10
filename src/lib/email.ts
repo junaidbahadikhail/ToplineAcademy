@@ -102,7 +102,7 @@ export async function sendInstructorApprovedEmail(to: string, name: string) {
   await send(to, 'Your instructor account is approved', html);
 }
 
-export async function sendSessionStartingEmail(to: string, name: string, className: string, meetLink: string) {
+export async function sendSessionStartingEmail(to: string, name: string, className: string, _meetLink: string) {
   const html = base(`
     <h1 style="margin:0 0 8px;font-size:24px;color:#0f172a;">Session Starting Now</h1>
     <p style="margin:0 0 16px;color:#475569;">Hi ${name}, your class <strong>${className}</strong> is live right now. Join before you miss it!</p>

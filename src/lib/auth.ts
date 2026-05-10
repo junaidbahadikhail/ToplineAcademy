@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@prisma/client';
 
-const secret = process.env.JWT_SECRET || 'topline-academy-secret';
+if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET environment variable is not set.');
+const secret = process.env.JWT_SECRET as string;
 const expiresIn = '7d';
 
 export interface AuthTokenPayload {

@@ -26,6 +26,13 @@ export default function RegisterPage() {
       return;
     }
 
+    const phoneClean = form.phone.replace(/[\s-]/g, '');
+    if (!/^([+]92\d{10}|03\d{9})$/.test(phoneClean)) {
+      setError('Phone must be a valid Pakistani number (e.g. 0312 1234567 or +92 312 1234567).');
+      setLoading(false);
+      return;
+    }
+
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

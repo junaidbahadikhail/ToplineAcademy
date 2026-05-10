@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { getSession } from '@/lib/get-session';
 import { demoClasses, getDemoClassStatus } from '@/lib/demo-classes';
-import { syncClassToNotion } from '@/lib/notion';
 
 type ClassWithInstructor = Prisma.ClassGetPayload<{
   include: {
@@ -87,23 +86,6 @@ export async function POST(request: Request) {
       isApproved: session.role === 'ADMIN',
       meetLink: `tl-${Date.now().toString(36)}`,
     },
-  });
-
-  const instructor = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: { name: true, email: true },
-  });
-
-  void syncClassToNotion({
-    classId: cls.id,
-    title: cls.title,
-    subject: cls.subject,
-    instructorName: instructor?.name ?? 'Unknown',
-    instructorEmail: instructor?.email ?? '',
-    scheduleTime: cls.scheduleTime.toISOString(),
-    feePkr: cls.feePkr,
-    maxStudents: cls.maxStudents,
-    status: cls.isApproved ? 'Approved' : 'Pending Approval',
   });
 
   return NextResponse.json(cls, { status: 201 });

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/get-session';
 import { sendEnrollmentApprovedEmail, sendEnrollmentRejectedEmail } from '@/lib/email';
-import { updateEnrollmentStatusInNotion } from '@/lib/notion';
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
@@ -45,7 +44,5 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       enrollment.class.title,
     );
   }
-  void updateEnrollmentStatusInNotion(params.id, status === 'APPROVED' ? 'Approved' : 'Rejected');
-
   return NextResponse.json(enrollment);
 }

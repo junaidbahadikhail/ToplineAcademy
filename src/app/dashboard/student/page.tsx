@@ -75,7 +75,7 @@ function ScheduleCalendar({ enrollments }: { enrollments: Enrollment[] }) {
 }
 
 export default function StudentDashboardPage() {
-  const [user, setUser] = useState<{ userId: string; email: string } | null>(null);
+  const [_user, setUser] = useState<{ userId: string; email: string } | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);

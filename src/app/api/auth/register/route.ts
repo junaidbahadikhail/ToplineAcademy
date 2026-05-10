@@ -12,6 +12,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name, email, phone, city, and password are required.' }, { status: 400 });
     }
 
+    const phoneClean = phone.replace(/[\s-]/g, '');
+    const validPhone = /^([+]92\d{10}|03\d{9})$/.test(phoneClean);
+    if (!validPhone) {
+      return NextResponse.json({ error: 'Phone must be a valid Pakistani number (e.g. 0312 1234567 or +923121234567).' }, { status: 400 });
+    }
+
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
       return NextResponse.json({ error: 'This email is already registered.' }, { status: 409 });
