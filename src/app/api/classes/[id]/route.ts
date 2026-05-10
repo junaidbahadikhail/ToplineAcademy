@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionFromRequest } from '@/lib/get-session';
+import { getSession } from '@/lib/get-session';
 import { getDemoClassById, getDemoClassStatus } from '@/lib/demo-classes';
 
 interface ClassParams {
@@ -10,7 +10,7 @@ interface ClassParams {
 }
 
 export async function GET(_request: Request, { params }: ClassParams) {
-  const classItem = await prisma['class'].findUnique({
+  const classItem = await prisma.class.findUnique({
     where: { id: params.id },
     include: {
       instructor: {
@@ -37,9 +37,17 @@ export async function GET(_request: Request, { params }: ClassParams) {
         type: demoClass.type,
         status: getDemoClassStatus(demoClass.scheduleTime),
         maxStudents: demoClass.maxStudents,
+        isDemo: true,
       });
     }
     return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
+  }
+
+  if (!classItem.isApproved) {
+    const session = getSession();
+    if (!session || (session.role !== 'ADMIN' && classItem.instructorId !== session.userId)) {
+      return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
+    }
   }
 
   return NextResponse.json({
@@ -56,11 +64,12 @@ export async function GET(_request: Request, { params }: ClassParams) {
     type: classItem.type,
     status: classItem.status,
     maxStudents: classItem.maxStudents,
+    isApproved: classItem.isApproved,
   });
 }
 
 export async function PATCH(request: Request, { params }: ClassParams) {
-  const session = getSessionFromRequest(request);
+  const session = getSession();
   if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

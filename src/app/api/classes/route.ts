@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { getSessionFromRequest } from '@/lib/get-session';
+import { getSession } from '@/lib/get-session';
 import { demoClasses, getDemoClassStatus } from '@/lib/demo-classes';
+import { syncClassToNotion } from '@/lib/notion';
 
 type ClassWithInstructor = Prisma.ClassGetPayload<{
   include: {
@@ -26,7 +27,8 @@ const fallbackClasses = demoClasses.map((item) => ({
 
 export async function GET() {
   try {
-    const classes = await prisma['class'].findMany({
+    const classes = await prisma.class.findMany({
+      where: { isApproved: true },
       include: {
         instructor: {
           select: {
@@ -54,13 +56,13 @@ export async function GET() {
     }));
 
     return NextResponse.json(payload);
-  } catch (error) {
+  } catch {
     return NextResponse.json(fallbackClasses);
   }
 }
 
 export async function POST(request: Request) {
-  const session = getSessionFromRequest(request);
+  const session = getSession();
   if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
     return NextResponse.json({ error: 'Only instructors can create classes.' }, { status: 403 });
   }
@@ -82,8 +84,26 @@ export async function POST(request: Request) {
       scheduleTime: new Date(scheduleTime),
       maxStudents: Number(maxStudents),
       feePkr: Number(feePkr),
+      isApproved: session.role === 'ADMIN',
       meetLink: `tl-${Date.now().toString(36)}`,
     },
+  });
+
+  const instructor = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { name: true, email: true },
+  });
+
+  void syncClassToNotion({
+    classId: cls.id,
+    title: cls.title,
+    subject: cls.subject,
+    instructorName: instructor?.name ?? 'Unknown',
+    instructorEmail: instructor?.email ?? '',
+    scheduleTime: cls.scheduleTime.toISOString(),
+    feePkr: cls.feePkr,
+    maxStudents: cls.maxStudents,
+    status: cls.isApproved ? 'Approved' : 'Pending Approval',
   });
 
   return NextResponse.json(cls, { status: 201 });

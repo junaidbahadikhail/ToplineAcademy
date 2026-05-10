@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionFromRequest } from '@/lib/get-session';
+import { getSession } from '@/lib/get-session';
 import { UserRole } from '@prisma/client';
 
 export async function GET(request: Request) {
-  const session = getSessionFromRequest(request);
+  const session = getSession();
   if (!session || session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

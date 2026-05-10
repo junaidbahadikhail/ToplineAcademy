@@ -39,9 +39,27 @@ model Class {
   maxStudents    Int
   feePkr         Int
   status         ClassStatus    @default(UPCOMING)
+  isApproved     Boolean        @default(false)
   enrollments    Enrollment[]
   attendance     Attendance[]
+  meetingNote    MeetingNote?
   createdAt      DateTime       @default(now())
+}
+
+model MeetingNote {
+  id           String   @id @default(uuid())
+  class        Class    @relation(fields: [classId], references: [id])
+  classId      String   @unique
+  recordingId  String?
+  transcript   String?
+  summary      String?
+  keyTopics    String[]
+  actionItems  String[]
+  importantNotes String[]
+  quizQuestions  String[]
+  notionPageId String?
+  duration     Int?
+  createdAt    DateTime @default(now())
 }
 
 model Enrollment {
@@ -55,6 +73,8 @@ model Enrollment {
   approvedAt      DateTime?
   attendance      Attendance?
   createdAt       DateTime      @default(now())
+
+  @@unique([studentId, classId])
 }
 
 model Attendance {

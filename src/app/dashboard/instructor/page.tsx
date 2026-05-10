@@ -19,6 +19,14 @@ interface ClassItem {
   enrollments: { id: string }[];
 }
 
+interface RecordingState {
+  recordingId: string | null;
+  phase: 'idle' | 'recording' | 'stopped' | 'processing' | 'done';
+  summary?: string;
+  notionPageId?: string;
+  error?: string;
+}
+
 const statusColor: Record<string, string> = {
   UPCOMING: 'bg-blue-50 text-blue-700',
   LIVE_NOW: 'bg-green-100 text-green-700',
@@ -51,23 +59,27 @@ export default function InstructorDashboardPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [recordings, setRecordings] = useState<Record<string, RecordingState>>({});
 
   const fetchClasses = () => {
     fetch('/api/dashboard/instructor')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : []))
       .then((data) => { setClasses(Array.isArray(data) ? data : []); setLoading(false); })
       .catch(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetch('/api/auth/me').then((r) => r.json()).then((me) => {
-      if (!me.user || (me.user.role !== 'INSTRUCTOR' && me.user.role !== 'ADMIN')) {
-        setAuthorized(false);
-        return;
-      }
-      setAuthorized(true);
-      fetchClasses();
-    }).catch(() => setAuthorized(false));
+    fetch('/api/auth/me')
+      .then((r) => (r.ok ? r.json() : { user: null }))
+      .then((me) => {
+        if (!me.user || (me.user.role !== 'INSTRUCTOR' && me.user.role !== 'ADMIN')) {
+          setAuthorized(false);
+          return;
+        }
+        setAuthorized(true);
+        fetchClasses();
+      })
+      .catch(() => setAuthorized(false));
   }, []);
 
   const startEdit = (cls: ClassItem) => {
@@ -112,6 +124,43 @@ export default function InstructorDashboardPage() {
     else if (liveClassId === id) setLiveClassId(null);
     setActionLoading(null);
     fetchClasses();
+  };
+
+  const recordingAction = async (classId: string, action: 'start' | 'stop' | 'process') => {
+    setRecordings((prev) => ({
+      ...prev,
+      [classId]: {
+        ...prev[classId],
+        recordingId: prev[classId]?.recordingId ?? null,
+        phase: action === 'start' ? 'recording' : action === 'stop' ? 'stopped' : 'processing',
+        error: undefined,
+      },
+    }));
+    try {
+      const res = await fetch(`/api/classes/${classId}/recording`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed');
+
+      if (action === 'start') {
+        setRecordings((prev) => ({ ...prev, [classId]: { recordingId: data.recordingId, phase: 'recording' } }));
+      } else if (action === 'stop') {
+        setRecordings((prev) => ({ ...prev, [classId]: { ...prev[classId], phase: 'stopped' } }));
+      } else {
+        setRecordings((prev) => ({
+          ...prev,
+          [classId]: { ...prev[classId], phase: 'done', summary: data.summary, notionPageId: data.notionPageId },
+        }));
+      }
+    } catch (err: unknown) {
+      setRecordings((prev) => ({
+        ...prev,
+        [classId]: { ...prev[classId], phase: prev[classId]?.phase === 'processing' ? 'stopped' : 'idle', error: (err as Error).message },
+      }));
+    }
   };
 
   const createClass = async () => {
@@ -363,6 +412,21 @@ export default function InstructorDashboardPage() {
                           >
                             Open video
                           </button>
+                          {recordings[cls.id]?.phase !== 'recording' ? (
+                            <button
+                              onClick={() => recordingAction(cls.id, 'start')}
+                              className="rounded-full bg-red-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-600 flex items-center gap-1"
+                            >
+                              <span className="h-2 w-2 rounded-full bg-white inline-block" /> Record
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => recordingAction(cls.id, 'stop')}
+                              className="rounded-full bg-slate-700 px-4 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 flex items-center gap-1"
+                            >
+                              <span className="h-2 w-2 rounded-full bg-red-400 animate-pulse inline-block" /> Stop REC
+                            </button>
+                          )}
                           <button
                             onClick={() => controlSession(cls.id, 'end')}
                             disabled={sessionBusy}
@@ -372,7 +436,34 @@ export default function InstructorDashboardPage() {
                           </button>
                         </>
                       )}
+                      {cls.status === 'ENDED' && recordings[cls.id]?.phase === 'stopped' && (
+                        <button
+                          onClick={() => recordingAction(cls.id, 'process')}
+                          className="rounded-full bg-teal-950 px-4 py-1.5 text-xs font-semibold text-white hover:bg-teal-900"
+                        >
+                          Generate notes
+                        </button>
+                      )}
+                      {cls.status === 'ENDED' && recordings[cls.id]?.phase === 'processing' && (
+                        <span className="rounded-full bg-amber-100 px-4 py-1.5 text-xs font-semibold text-amber-700 flex items-center gap-1">
+                          <span className="h-3 w-3 animate-spin rounded-full border-2 border-amber-700 border-t-transparent inline-block" /> Processing…
+                        </span>
+                      )}
+                      {recordings[cls.id]?.phase === 'done' && (
+                        <span className="rounded-full bg-teal-100 px-3 py-1.5 text-xs font-semibold text-teal-800">
+                          Notes saved
+                        </span>
+                      )}
                     </div>
+                    {recordings[cls.id]?.error && (
+                      <p className="mt-2 text-xs text-red-600">{recordings[cls.id]?.error}</p>
+                    )}
+                    {recordings[cls.id]?.phase === 'done' && recordings[cls.id]?.summary && (
+                      <div className="mt-3 rounded-xl bg-teal-50 border border-teal-200 p-3">
+                        <p className="text-xs font-semibold text-teal-800 mb-1">Session Summary</p>
+                        <p className="text-xs text-teal-700">{recordings[cls.id]?.summary}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

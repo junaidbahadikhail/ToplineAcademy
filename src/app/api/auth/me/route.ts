@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/get-session';
+import { getSession } from '@/lib/get-session';
 
-export async function GET(request: Request) {
-  const session = getSessionFromRequest(request);
+export async function GET() {
+  const session = getSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

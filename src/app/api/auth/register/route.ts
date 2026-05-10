@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
+import { sendWelcomeEmail } from '@/lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -29,6 +30,8 @@ export async function POST(request: Request) {
         isVerified: assignedRole === 'STUDENT',
       },
     });
+
+    void sendWelcomeEmail(user.email, user.name, user.role);
 
     return NextResponse.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } }, { status: 201 });
   } catch (error) {

@@ -1,12 +1,12 @@
+import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/auth';
 import type { AuthTokenPayload } from '@/lib/auth';
 
-export function getSessionFromRequest(request: Request): AuthTokenPayload | null {
-  const cookieHeader = request.headers.get('cookie') || '';
-  const match = cookieHeader.match(/topline_session=([^;]+)/);
-  if (!match) return null;
+export function getSession(): AuthTokenPayload | null {
+  const token = cookies().get('topline_session')?.value;
+  if (!token) return null;
   try {
-    return verifyToken(decodeURIComponent(match[1]));
+    return verifyToken(token);
   } catch {
     return null;
   }

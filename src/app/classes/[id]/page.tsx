@@ -19,6 +19,17 @@ interface ClassDetail {
   type: string;
   status: string;
   maxStudents: number;
+  isDemo?: boolean;
+}
+
+interface MeetingNote {
+  summary: string | null;
+  keyTopics: string[];
+  actionItems: string[];
+  importantNotes: string[];
+  quizQuestions: string[];
+  notionPageId: string | null;
+  createdAt: string;
 }
 
 type EnrollStatus = 'none' | 'pending' | 'approved' | 'rejected';
@@ -39,33 +50,53 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [meetingNote, setMeetingNote] = useState<MeetingNote | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/classes/${params.id}`).then((r) => r.json()),
-      fetch('/api/auth/me').then((r) => r.json()),
-      fetch('/api/dashboard/student').then((r) => r.json()),
-    ]).then(([classData, meData, enrollData]) => {
-      setCls(classData.error ? null : classData);
-      setRole(meData.user?.role ?? null);
-      if (Array.isArray(enrollData)) {
-        const found = enrollData.find((e: { class: { id: string }; status: string }) => e.class.id === params.id);
-        if (found) setEnrollStatus(found.status.toLowerCase() as EnrollStatus);
+    const load = async () => {
+      try {
+        const [classRes, meRes, enrollRes, noteRes] = await Promise.all([
+          fetch(`/api/classes/${params.id}`),
+          fetch('/api/auth/me'),
+          fetch('/api/dashboard/student'),
+          fetch(`/api/classes/${params.id}/recording`),
+        ]);
+
+        const classData = classRes.ok ? await classRes.json() : null;
+        const meData = meRes.ok ? await meRes.json() : { user: null };
+        const enrollData = enrollRes.ok ? await enrollRes.json() : [];
+        const noteData = noteRes.ok ? await noteRes.json() : null;
+
+        setCls(classData?.error ? null : classData);
+        setRole(meData.user?.role ?? null);
+        if (noteData?.summary) setMeetingNote(noteData);
+
+        if (Array.isArray(enrollData)) {
+          const found = enrollData.find((e: { class: { id: string }; status: string }) => e.class.id === params.id);
+          if (found) setEnrollStatus(found.status.toLowerCase() as EnrollStatus);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    };
+    load();
   }, [params.id]);
 
   const router = useRouter();
 
   const enroll = async () => {
+    if (role !== 'STUDENT') {
+      router.push(`/login?redirect=/classes/${params.id}`);
+      return;
+    }
+
     setEnrolling(true);
     setError(null);
     const res = await fetch(`/api/classes/${params.id}/enroll`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
       if (res.status === 401) {
-        router.push('/login');
+        router.push(`/login?redirect=/classes/${params.id}`);
         setEnrolling(false);
         return;
       }
@@ -140,69 +171,91 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <p className="font-semibold text-slate-800">Enrollment</p>
 
-              {role === null && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-500 mb-3">Login to enroll in this class.</p>
-                  <Link href="/login" className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
-                    Login to enroll
-                  </Link>
+              {cls.isDemo ? (
+                <div className="mt-4 rounded-2xl bg-teal-50 border border-teal-200 p-4">
+                  <p className="text-sm font-semibold text-teal-800">Demo class</p>
+                  <p className="mt-1 text-sm text-teal-700">This is a preview. Register on Topline Academy to enroll in real classes.</p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <Link href="/register" className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
+                      Create account
+                    </Link>
+                    <Link href="/classes" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
+                      Browse real classes
+                    </Link>
+                  </div>
                 </div>
-              )}
+              ) : (
+                <>
+                  {role === null && (
+                    <div className="mt-4 space-y-3">
+                      <p className="text-sm text-slate-500">Sign in or create an account to enroll in this class.</p>
+                      <div className="flex flex-wrap gap-3">
+                        <Link href="/login" className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
+                          Login
+                        </Link>
+                        <Link href="/register" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
+                          Create account
+                        </Link>
+                      </div>
+                    </div>
+                  )}
 
-              {role === 'STUDENT' && enrollStatus === 'none' && (
-                <div className="mt-4">
-                  <p className="text-sm text-slate-500 mb-3">Submit your enrollment. Admin will review and approve it.</p>
-                  {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-                  <button
-                    onClick={enroll}
-                    disabled={enrolling}
-                    className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60"
-                  >
-                    {enrolling ? 'Enrolling…' : 'Enroll now'}
-                  </button>
-                </div>
-              )}
+                  {role === 'STUDENT' && enrollStatus === 'none' && (
+                    <div className="mt-4">
+                      <p className="text-sm text-slate-500 mb-3">Submit your enrollment. Admin will review and approve it.</p>
+                      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+                      <button
+                        onClick={enroll}
+                        disabled={enrolling}
+                        className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60"
+                      >
+                        {enrolling ? 'Enrolling…' : 'Enroll now'}
+                      </button>
+                    </div>
+                  )}
 
-              {role === 'STUDENT' && enrollStatus === 'pending' && (
-                <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
-                  <p className="text-sm font-semibold text-amber-800">Enrollment pending</p>
-                  <p className="mt-1 text-sm text-amber-700">Admin will review your enrollment. Check your dashboard for updates.</p>
-                </div>
-              )}
+                  {role === 'STUDENT' && enrollStatus === 'pending' && (
+                    <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
+                      <p className="text-sm font-semibold text-amber-800">Enrollment pending</p>
+                      <p className="mt-1 text-sm text-amber-700">Admin will review your enrollment. Check your dashboard for updates.</p>
+                    </div>
+                  )}
 
-              {role === 'STUDENT' && enrollStatus === 'rejected' && (
-                <div className="mt-4 rounded-2xl bg-red-50 border border-red-200 p-4">
-                  <p className="text-sm font-semibold text-red-700">Enrollment rejected</p>
-                  <p className="mt-1 text-sm text-red-600">Contact support for more information.</p>
-                </div>
-              )}
+                  {role === 'STUDENT' && enrollStatus === 'rejected' && (
+                    <div className="mt-4 rounded-2xl bg-red-50 border border-red-200 p-4">
+                      <p className="text-sm font-semibold text-red-700">Enrollment rejected</p>
+                      <p className="mt-1 text-sm text-red-600">Contact support for more information.</p>
+                    </div>
+                  )}
 
-              {role === 'STUDENT' && enrollStatus === 'approved' && !isLive && (
-                <div className="mt-4 rounded-2xl bg-green-50 border border-green-200 p-4">
-                  <p className="text-sm font-semibold text-green-700">You are enrolled</p>
-                  <p className="mt-1 text-sm text-green-600">You can join when the session goes live.</p>
-                  <Link href="/dashboard/student" className="mt-3 inline-flex text-sm underline text-green-700">View in dashboard →</Link>
-                </div>
-              )}
+                  {role === 'STUDENT' && enrollStatus === 'approved' && !isLive && (
+                    <div className="mt-4 rounded-2xl bg-green-50 border border-green-200 p-4">
+                      <p className="text-sm font-semibold text-green-700">You are enrolled</p>
+                      <p className="mt-1 text-sm text-green-600">You can join when the session goes live.</p>
+                      <Link href="/dashboard/student" className="mt-3 inline-flex text-sm underline text-green-700">View in dashboard →</Link>
+                    </div>
+                  )}
 
-              {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
-                <div className="mt-4">
-                  <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
-                  <button
-                    onClick={() => setJoining(true)}
-                    className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
-                  >
-                    Join live session →
-                  </button>
-                </div>
-              )}
+                  {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
+                    <div className="mt-4">
+                      <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
+                      <button
+                        onClick={() => setJoining(true)}
+                        className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                      >
+                        Join live session →
+                      </button>
+                    </div>
+                  )}
 
-              {(role === 'INSTRUCTOR' || role === 'ADMIN') && (
-                <div className="mt-4">
-                  <Link href="/dashboard/instructor" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
-                    Manage in dashboard →
-                  </Link>
-                </div>
+                  {(role === 'INSTRUCTOR' || role === 'ADMIN') && (
+                    <div className="mt-4">
+                      <Link href="/dashboard/instructor" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
+                        Manage in dashboard →
+                      </Link>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -211,6 +264,73 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
             <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <h2 className="font-semibold text-slate-900">Course overview</h2>
               <p className="mt-3 text-sm text-slate-600 leading-relaxed">{cls.description}</p>
+            </div>
+          )}
+
+          {meetingNote && (
+            <div className="mt-8 space-y-4">
+              <h2 className="font-semibold text-slate-900 text-lg">Session Notes</h2>
+
+              {meetingNote.summary && (
+                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 mb-2">Summary</p>
+                  <p className="text-sm text-teal-900 leading-relaxed">{meetingNote.summary}</p>
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {meetingNote.keyTopics.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Key Topics</p>
+                    <ul className="space-y-1.5">
+                      {meetingNote.keyTopics.map((t, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                          <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" />{t}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {meetingNote.actionItems.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Homework / Action Items</p>
+                    <ul className="space-y-1.5">
+                      {meetingNote.actionItems.map((item, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                          <span className="mt-0.5 text-teal-600">☐</span>{item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {meetingNote.importantNotes.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 mb-3">Important Notes</p>
+                  <ul className="space-y-1.5">
+                    {meetingNote.importantNotes.map((note, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-amber-900">
+                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />{note}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {meetingNote.quizQuestions.length > 0 && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Review Questions</p>
+                  <ol className="space-y-2">
+                    {meetingNote.quizQuestions.map((q, i) => (
+                      <li key={i} className="text-sm text-slate-700">
+                        <span className="font-semibold text-teal-950">{i + 1}.</span> {q}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           )}
         </div>

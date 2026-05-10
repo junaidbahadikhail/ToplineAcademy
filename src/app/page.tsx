@@ -21,8 +21,10 @@ export default function HomePage() {
                 Pakistan&apos;s branded online classroom for AI and tech students.
               </h1>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-                Build, schedule, and manage live classes with payment verification and recordings in one place. Designed for
-                fast, lightweight delivery on Pakistani internet.
+                Build, schedule, and manage live classes with payment verification, attendance, and payment proof workflows.
+              </p>
+              <p className="mt-4 max-w-2xl text-sm text-slate-500">
+                Live demo session scheduled for today at <strong>8:00pm PKT</strong>. Login or signup to join and check the video session.
               </p>
               <div className="mt-10 flex flex-col gap-3 sm:flex-row">
                 <Link href="/classes" className="inline-flex items-center justify-center rounded-full bg-teal-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900">

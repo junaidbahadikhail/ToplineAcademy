@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionFromRequest } from '@/lib/get-session';
+import { getSession } from '@/lib/get-session';
+import { sendEnrollmentApprovedEmail, sendEnrollmentRejectedEmail } from '@/lib/email';
+import { updateEnrollmentStatusInNotion } from '@/lib/notion';
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const session = getSessionFromRequest(request);
+  const session = getSession();
   if (!session || session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
@@ -21,7 +23,29 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       status,
       ...(status === 'APPROVED' && { approvedAt: new Date() }),
     },
+    include: {
+      student: { select: { name: true, email: true } },
+      class: { select: { title: true, scheduleTime: true, meetLink: true } },
+    },
   });
+
+  // Fire-and-forget: email + Notion
+  if (status === 'APPROVED') {
+    void sendEnrollmentApprovedEmail(
+      enrollment.student.email,
+      enrollment.student.name,
+      enrollment.class.title,
+      enrollment.class.scheduleTime.toISOString(),
+      enrollment.class.meetLink,
+    );
+  } else {
+    void sendEnrollmentRejectedEmail(
+      enrollment.student.email,
+      enrollment.student.name,
+      enrollment.class.title,
+    );
+  }
+  void updateEnrollmentStatusInNotion(params.id, status === 'APPROVED' ? 'Approved' : 'Rejected');
 
   return NextResponse.json(enrollment);
 }

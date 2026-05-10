@@ -6,9 +6,9 @@ import { SiteHeader } from '@/components/SiteHeader';
 export default function DashboardPage() {
   useEffect(() => {
     fetch('/api/auth/me')
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        const role = data.user?.role;
+        const role = data?.user?.role;
         if (role === 'STUDENT') window.location.replace('/dashboard/student');
         else if (role === 'INSTRUCTOR') window.location.replace('/dashboard/instructor');
         else if (role === 'ADMIN') window.location.replace('/admin');

@@ -3,14 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SiteHeader } from '@/components/SiteHeader';
 
-type Tab = 'users' | 'enrollments';
+type Tab = 'users' | 'enrollments' | 'classes';
 type RoleFilter = 'ALL' | 'STUDENT' | 'INSTRUCTOR';
 type EnrollmentFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
+type ClassFilter = 'ALL' | 'PENDING' | 'APPROVED';
 
 interface Stats {
   totalStudents: number;
   totalInstructors: number;
   pendingEnrollments: number;
+  pendingClasses: number;
   totalClasses: number;
 }
 
@@ -37,6 +39,19 @@ interface Enrollment {
   class: { id: string; title: string; subject: string; feePkr: number; scheduleTime: string };
 }
 
+interface AdminClass {
+  id: string;
+  title: string;
+  subject: string;
+  description: string | null;
+  scheduleTime: string;
+  feePkr: number;
+  maxStudents: number;
+  status: string;
+  isApproved: boolean;
+  instructor: { id: string; name: string; email: string };
+}
+
 const roleBadge: Record<string, string> = {
   STUDENT: 'bg-blue-50 text-blue-700 border-blue-200',
   INSTRUCTOR: 'bg-purple-50 text-purple-700 border-purple-200',
@@ -55,9 +70,18 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [classes, setClasses] = useState<AdminClass[]>([]);
+  const [approvedClasses, setApprovedClasses] = useState<AdminClass[]>([]);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
   const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentFilter>('PENDING');
+  const [classFilter, setClassFilter] = useState<ClassFilter>('PENDING');
+  const [createVisible, setCreateVisible] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '25', feePkr: '3000' });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [healthStatus, setHealthStatus] = useState<{ database: string; resend: string; daily: string; notion: string; openai: string } | null>(null);
+  const [defaultTabSet, setDefaultTabSet] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -75,8 +99,21 @@ export default function AdminPage() {
   const fetchStats = useCallback(() => {
     fetch('/api/admin/stats')
       .then((r) => r.json())
-      .then(setStats)
+      .then((data) => setStats(data))
       .catch(() => {});
+  }, []);
+
+  const fetchHealthStatus = useCallback(() => {
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((data) => setHealthStatus({
+        database: data.database || 'unknown',
+        resend: data.resend || 'unknown',
+        daily: data.daily || 'unknown',
+        notion: data.notion || 'unknown',
+        openai: data.openai || 'unknown',
+      }))
+      .catch(() => setHealthStatus({ database: 'failed', resend: 'failed', daily: 'failed', notion: 'failed', openai: 'failed' }));
   }, []);
 
   const fetchUsers = useCallback((role: RoleFilter = 'ALL') => {
@@ -95,12 +132,40 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
+  const fetchClasses = useCallback((status: ClassFilter = 'PENDING') => {
+    const url = `/api/admin/classes?status=${status}`;
+    fetch(url)
+      .then((r) => r.json())
+      .then(setClasses)
+      .catch(() => {});
+  }, []);
+
+  const fetchApprovedClasses = useCallback(() => {
+    fetch('/api/admin/classes?status=APPROVED')
+      .then((r) => r.json())
+      .then(setApprovedClasses)
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!authorized) return;
     fetchStats();
     fetchUsers();
     fetchEnrollments();
-  }, [authorized, fetchStats, fetchUsers, fetchEnrollments]);
+    fetchClasses();
+    fetchApprovedClasses();
+    fetchHealthStatus();
+  }, [authorized, fetchStats, fetchUsers, fetchEnrollments, fetchClasses, fetchApprovedClasses, fetchHealthStatus]);
+
+  useEffect(() => {
+    if (defaultTabSet || !stats) return;
+    if (stats.pendingClasses > 0) {
+      setActiveTab('classes');
+    } else if (stats.pendingEnrollments > 0) {
+      setActiveTab('enrollments');
+    }
+    setDefaultTabSet(true);
+  }, [defaultTabSet, stats]);
 
   const handleRoleFilter = (role: RoleFilter) => {
     setRoleFilter(role);
@@ -110,6 +175,11 @@ export default function AdminPage() {
   const handleEnrollmentFilter = (status: EnrollmentFilter) => {
     setEnrollmentFilter(status);
     fetchEnrollments(status);
+  };
+
+  const handleClassFilter = (status: ClassFilter) => {
+    setClassFilter(status);
+    fetchClasses(status);
   };
 
   const patchUser = async (id: string, patch: Partial<{ role: string; isVerified: boolean; isActive: boolean }>) => {
@@ -133,6 +203,49 @@ export default function AdminPage() {
     });
     setActionLoading(null);
     fetchEnrollments(enrollmentFilter);
+    fetchStats();
+  };
+
+  const patchClassApproval = async (id: string, approve: boolean) => {
+    setActionLoading(id);
+    await fetch(`/api/admin/classes/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isApproved: approve }),
+    });
+    setActionLoading(null);
+    fetchClasses(classFilter);
+    fetchStats();
+  };
+
+  const createClass = async () => {
+    setCreateError(null);
+    setCreateLoading(true);
+    const response = await fetch('/api/classes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: createForm.title,
+        subject: createForm.subject,
+        description: createForm.description,
+        scheduleTime: createForm.scheduleTime,
+        maxStudents: Number(createForm.maxStudents),
+        feePkr: Number(createForm.feePkr),
+      }),
+    });
+
+    const data = await response.json();
+    setCreateLoading(false);
+
+    if (!response.ok) {
+      setCreateError(data.error || 'Unable to create class.');
+      return;
+    }
+
+    setCreateVisible(false);
+    setCreateForm({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '25', feePkr: '3000' });
+    fetchClasses(classFilter);
+    fetchApprovedClasses();
     fetchStats();
   };
 
@@ -165,6 +278,7 @@ export default function AdminPage() {
     { label: 'Total students', value: stats?.totalStudents ?? '—' },
     { label: 'Total instructors', value: stats?.totalInstructors ?? '—' },
     { label: 'Pending enrollments', value: stats?.pendingEnrollments ?? '—' },
+    { label: 'Pending classes', value: stats?.pendingClasses ?? '—' },
     { label: 'Total classes', value: stats?.totalClasses ?? '—' },
   ];
 
@@ -189,9 +303,159 @@ export default function AdminPage() {
           ))}
         </div>
 
+        <div className="mb-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Class schedule</p>
+                <p className="mt-1 text-xs text-slate-400">Approved classes appear on the admin calendar.</p>
+              </div>
+            </div>
+            <div className="mt-6 space-y-3">
+              {approvedClasses.length > 0 ? (
+                approvedClasses.slice(0, 5).map((cls) => (
+                  <div key={cls.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-slate-900">{cls.title}</p>
+                        <p className="text-xs text-slate-500">{cls.subject}</p>
+                      </div>
+                      <div className="text-right text-sm text-slate-500">
+                        <p>{new Date(cls.scheduleTime).toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
+                        <p>{new Date(cls.scheduleTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-400">
+                  No approved classes scheduled yet.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-slate-500">Create class</p>
+                <p className="mt-1 text-xs text-slate-400">Admin-created classes are published immediately.</p>
+              </div>
+              <button
+                onClick={() => setCreateVisible((v) => !v)}
+                className="rounded-full bg-teal-950 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-900"
+              >
+                {createVisible ? 'Cancel' : 'New class'}
+              </button>
+            </div>
+
+            {createVisible && (
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Title</span>
+                    <input
+                      value={createForm.title}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Subject</span>
+                    <input
+                      value={createForm.subject}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, subject: e.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                    />
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">Description</span>
+                  <textarea
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                  />
+                </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Schedule</span>
+                    <input
+                      type="datetime-local"
+                      value={createForm.scheduleTime}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, scheduleTime: e.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Fee (PKR)</span>
+                    <input
+                      type="number"
+                      value={createForm.feePkr}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, feePkr: e.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                    />
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Max students</span>
+                    <input
+                      type="number"
+                      value={createForm.maxStudents}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, maxStudents: e.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                    />
+                  </label>
+                </div>
+                {createError && <p className="text-sm text-red-600">{createError}</p>}
+                <button
+                  onClick={createClass}
+                  disabled={createLoading}
+                  className="rounded-full bg-teal-950 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-50"
+                >
+                  {createLoading ? 'Creating…' : 'Create class'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium text-slate-500">Service health</p>
+              <p className="mt-1 text-xs text-slate-400">Live status for platform integrations.</p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              { label: 'Database', key: 'database' as const },
+              { label: 'Resend (Email)', key: 'resend' as const },
+              { label: 'Daily (Video)', key: 'daily' as const },
+              { label: 'Notion (CRM)', key: 'notion' as const },
+              { label: 'OpenAI (AI Notes)', key: 'openai' as const },
+            ].map(({ label, key }) => {
+              const val = healthStatus?.[key] ?? 'loading';
+              const color = val === 'loading' ? 'text-slate-400'
+                : val === 'connected' || val === 'healthy' || val === 'reachable' || val === 'configured' ? 'text-green-600'
+                : val === 'partially configured' ? 'text-amber-600'
+                : val === 'missing' ? 'text-slate-500'
+                : 'text-red-600';
+              return (
+                <div key={key} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-600">{label}</p>
+                  <p className={`mt-2 text-base font-semibold ${color}`}>{val}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Tabs */}
         <div className="mb-6 flex gap-2">
-          {(['users', 'enrollments'] as Tab[]).map((tab) => (
+          {(['users', 'enrollments', 'classes'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -201,7 +465,17 @@ export default function AdminPage() {
                   : 'border border-slate-300 bg-white text-slate-600 hover:border-teal-950'
               }`}
             >
-              {tab === 'users' ? 'Users' : 'Enrollments'}
+              {tab === 'users' ? 'Users' : tab === 'enrollments' ? 'Enrollments' : 'Classes'}
+              {tab === 'enrollments' && stats?.pendingEnrollments ? (
+                <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                  {stats.pendingEnrollments} pending
+                </span>
+              ) : null}
+              {tab === 'classes' && stats?.pendingClasses ? (
+                <span className="ml-2 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                  {stats.pendingClasses} pending
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
@@ -314,17 +588,17 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Enrollments Tab */}
-        {activeTab === 'enrollments' && (
+        {/* Classes Tab */}
+        {activeTab === 'classes' && (
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-6 py-4">
               <span className="text-sm font-medium text-slate-600">Filter:</span>
-              {(['PENDING', 'APPROVED', 'REJECTED', 'ALL'] as EnrollmentFilter[]).map((s) => (
+              {(['PENDING', 'APPROVED', 'ALL'] as ClassFilter[]).map((s) => (
                 <button
                   key={s}
-                  onClick={() => handleEnrollmentFilter(s)}
+                  onClick={() => handleClassFilter(s)}
                   className={`rounded-full border px-4 py-1 text-xs font-semibold transition ${
-                    enrollmentFilter === s
+                    classFilter === s
                       ? 'border-teal-950 bg-teal-950 text-white'
                       : 'border-slate-300 text-slate-600 hover:border-teal-950'
                   }`}
@@ -334,6 +608,64 @@ export default function AdminPage() {
               ))}
             </div>
             <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-left">
+                    <th className="px-6 py-3 font-semibold text-slate-600">Title</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Subject</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Schedule</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Fee</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Status</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Instructor</th>
+                    <th className="px-6 py-3 font-semibold text-slate-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classes.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-10 text-center text-slate-400">No classes found.</td>
+                    </tr>
+                  )}
+                  {classes.map((cls) => (
+                    <tr key={cls.id} className="border-b border-slate-50 hover:bg-slate-50">
+                      <td className="px-6 py-4 font-medium text-slate-900">{cls.title}</td>
+                      <td className="px-6 py-4 text-slate-600">{cls.subject}</td>
+                      <td className="px-6 py-4 text-slate-600">
+                        <p>{new Date(cls.scheduleTime).toLocaleDateString('en-PK', { dateStyle: 'medium' })}</p>
+                        <p className="text-xs text-slate-400">{new Date(cls.scheduleTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-slate-700">{cls.feePkr.toLocaleString()}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls.isApproved ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                          {cls.isApproved ? 'Approved' : 'Pending approval'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600">{cls.instructor.name}</td>
+                      <td className="px-6 py-4">
+                        {cls.isApproved ? (
+                          <span className="text-xs text-slate-400">—</span>
+                        ) : (
+                          <button
+                            disabled={actionLoading === cls.id}
+                            onClick={() => patchClassApproval(cls.id, true)}
+                            className="rounded-full bg-green-600 px-3 py-1 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Enrollments Tab */}
+        {activeTab === 'enrollments' && (
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-6 py-4">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 bg-slate-50 text-left">

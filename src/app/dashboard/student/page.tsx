@@ -82,16 +82,32 @@ export default function StudentDashboardPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      fetch('/api/auth/me').then((r) => r.json()),
-      fetch('/api/dashboard/student').then((r) => r.json()),
-    ]).then(([me, data]) => {
-      if (!me.user || me.user.role !== 'STUDENT') { setAuthorized(false); return; }
-      setUser(me.user);
-      setAuthorized(true);
-      setEnrollments(Array.isArray(data) ? data : []);
-      setLoading(false);
-    }).catch(() => { setAuthorized(false); });
+    const load = async () => {
+      try {
+        const [meRes, dataRes] = await Promise.all([
+          fetch('/api/auth/me'),
+          fetch('/api/dashboard/student'),
+        ]);
+
+        const me = meRes.ok ? await meRes.json() : { user: null };
+        const data = dataRes.ok ? await dataRes.json() : [];
+
+        if (!me.user || me.user.role !== 'STUDENT') {
+          setAuthorized(false);
+          return;
+        }
+
+        setUser(me.user);
+        setAuthorized(true);
+        setEnrollments(Array.isArray(data) ? data : []);
+      } catch {
+        setAuthorized(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, []);
 
   if (authorized === null || loading) return (

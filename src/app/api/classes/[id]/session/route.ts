@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSessionFromRequest } from '@/lib/get-session';
+import { getSession } from '@/lib/get-session';
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const session = getSessionFromRequest(request);
+  const session = getSession();
   if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }

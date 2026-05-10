@@ -81,7 +81,7 @@ export default function ClassesPage() {
                   href={`/classes/${cls.id}`}
                   className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-900"
                 >
-                  {cls.status === 'LIVE_NOW' ? 'Join session →' : 'View & enroll →'}
+                  View details →
                 </Link>
               </div>
             </article>
