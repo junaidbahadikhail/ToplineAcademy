@@ -1,8 +1,8 @@
 const DAILY_API_KEY = process.env.DAILY_API_KEY;
-const DAILY_DOMAIN = process.env.DAILY_DOMAIN; // e.g. 'toplineacademy'
+const DAILY_DOMAIN = process.env.DAILY_DOMAIN; // e.g. 'toplineacademy' — required for iframe embed
 
-export function hasDailyConfig(): boolean {
-  return !!(DAILY_API_KEY && DAILY_DOMAIN);
+export function hasDailyDomain(): boolean {
+  return !!DAILY_DOMAIN;
 }
 
 export function getDailyRoomUrl(roomName: string): string | null {
@@ -10,19 +10,16 @@ export function getDailyRoomUrl(roomName: string): string | null {
   return `https://${DAILY_DOMAIN}.daily.co/${roomName}`;
 }
 
+// Optional: auto-create rooms via API when DAILY_API_KEY is also set
 export async function createOrGetDailyRoom(roomName: string): Promise<string | null> {
-  if (!DAILY_API_KEY || !DAILY_DOMAIN) return null;
+  if (!DAILY_API_KEY || !DAILY_DOMAIN) return getDailyRoomUrl(roomName);
 
-  // Check if room already exists
   const getRes = await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
     headers: { Authorization: `Bearer ${DAILY_API_KEY}` },
   });
 
-  if (getRes.ok) {
-    return `https://${DAILY_DOMAIN}.daily.co/${roomName}`;
-  }
+  if (getRes.ok) return `https://${DAILY_DOMAIN}.daily.co/${roomName}`;
 
-  // Create room with no moderator requirement and no prejoin UI
   const createRes = await fetch('https://api.daily.co/v1/rooms', {
     method: 'POST',
     headers: {
@@ -36,12 +33,10 @@ export async function createOrGetDailyRoom(roomName: string): Promise<string | n
         enable_chat: false,
         enable_knocking: false,
         start_audio_off: true,
-        start_video_off: false,
-        exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8, // expires in 8 hours
       },
     }),
   });
 
-  if (!createRes.ok) return null;
+  if (!createRes.ok) return `https://${DAILY_DOMAIN}.daily.co/${roomName}`;
   return `https://${DAILY_DOMAIN}.daily.co/${roomName}`;
 }

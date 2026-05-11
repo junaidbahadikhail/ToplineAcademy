@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 import { getJitsiRoomConfig } from '@/lib/jitsi';
-import { createOrGetDailyRoom, hasDailyConfig, getDailyRoomUrl } from '@/lib/daily';
+import { createOrGetDailyRoom, hasDailyDomain, getDailyRoomUrl } from '@/lib/daily';
 
 const PRE_JOIN_MS = 15 * 60 * 1000;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -73,7 +73,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
   const userEmail = user?.email ?? session.email;
 
   // Daily.co takes priority — no moderator screen, works immediately
-  if (hasDailyConfig()) {
+  if (hasDailyDomain()) {
     const roomUrl = await createOrGetDailyRoom(baseRoomName) ?? getDailyRoomUrl(baseRoomName);
     return NextResponse.json({ roomUrl, roomName: baseRoomName, domain: 'daily', jwt: null, userName });
   }

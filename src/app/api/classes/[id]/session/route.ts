@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { createOrGetDailyRoom } from '@/lib/daily';
+import { createOrGetDailyRoom, hasDailyDomain } from '@/lib/daily';
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
@@ -24,9 +24,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const status = action === 'start' ? 'LIVE_NOW' : 'ENDED';
 
-  // When starting, auto-create a Daily.co room if configured and no room exists
+  // When starting, auto-create a Daily.co room if API key is configured
   let meetLink = classItem.meetLink;
-  if (action === 'start') {
+  if (action === 'start' && hasDailyDomain()) {
     const slug = (classItem.title as string)
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
