@@ -62,7 +62,7 @@ export default function InstructorDashboardPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveClassId, setLiveClassId] = useState<string | null>(null);
-  const [liveRoomConfig, setLiveRoomConfig] = useState<{ roomName: string; domain: string; jwt?: string } | null>(null);
+  const [liveRoomConfig, setLiveRoomConfig] = useState<{ roomUrl?: string; roomName: string; domain: string; jwt?: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '', feePkr: '' });
   const [showCreate, setShowCreate] = useState(false);
@@ -149,7 +149,7 @@ export default function InstructorDashboardPage() {
     const data = await res.json();
     if (res.ok) {
       setLiveClassId(classId);
-      setLiveRoomConfig({ roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.jwt ?? undefined });
+      setLiveRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.jwt ?? undefined });
     }
   };
 
@@ -325,7 +325,8 @@ export default function InstructorDashboardPage() {
               </button>
             </div>
             <DailyRoom
-              roomName={liveRoomConfig.roomName}
+              roomUrl={liveRoomConfig.roomUrl}
+              roomName={liveRoomConfig.roomUrl ? undefined : liveRoomConfig.roomName}
               domain={liveRoomConfig.domain}
               token={liveRoomConfig.jwt}
               userName={instructorName ?? undefined}

@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 
 interface VideoRoomProps {
-  roomName: string;
+  roomUrl?: string;   // Daily.co full URL → renders as iframe (no moderator screen)
+  roomName?: string;  // Jitsi room name → uses External API
   domain?: string;
   token?: string;
   userName?: string;
@@ -16,13 +17,28 @@ declare global {
   }
 }
 
-export function DailyRoom({
-  roomName,
-  domain = 'meet.jit.si',
-  token,
-  userName,
-  isInstructor = false,
-}: VideoRoomProps) {
+const containerClass = 'h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900 overflow-hidden';
+
+// Daily.co prebuilt iframe — no moderator requirement, no login screen
+function DailyIframe({ roomUrl, userName }: { roomUrl: string; userName?: string }) {
+  const url = new URL(roomUrl);
+  if (userName) url.searchParams.set('userName', userName);
+  url.searchParams.set('showLeaveButton', '1');
+
+  return (
+    <iframe
+      src={url.toString()}
+      allow="camera; microphone; fullscreen; speaker-selection; display-capture; compute-pressure"
+      className={containerClass}
+      title="Live Session"
+    />
+  );
+}
+
+// Jitsi External API — used when Daily.co is not configured
+function JitsiRoom({ roomName, domain = 'meet.jit.si', token, userName, isInstructor = false }: {
+  roomName: string; domain?: string; token?: string; userName?: string; isInstructor?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);
 
@@ -79,10 +95,15 @@ export function DailyRoom({
     };
   }, [roomName, domain, token, userName, isInstructor]);
 
-  return (
-    <div
-      ref={containerRef}
-      className="h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900 overflow-hidden"
-    />
-  );
+  return <div ref={containerRef} className={containerClass} />;
+}
+
+export function DailyRoom({ roomUrl, roomName, domain, token, userName, isInstructor }: VideoRoomProps) {
+  if (roomUrl) {
+    return <DailyIframe roomUrl={roomUrl} userName={userName} />;
+  }
+  if (roomName) {
+    return <JitsiRoom roomName={roomName} domain={domain} token={token} userName={userName} isInstructor={isInstructor} />;
+  }
+  return null;
 }
