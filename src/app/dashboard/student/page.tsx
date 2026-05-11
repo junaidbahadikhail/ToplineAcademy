@@ -87,6 +87,8 @@ export default function StudentDashboardPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
+  const [joinRoomConfig, setJoinRoomConfig] = useState<{ roomName: string; domain: string; jwt?: string } | null>(null);
+  const [joinLoading, setJoinLoading] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -121,6 +123,17 @@ export default function StudentDashboardPage() {
     load();
   }, []);
 
+  const joinClass = async (classId: string) => {
+    setJoinLoading(classId);
+    const res = await fetch(`/api/classes/${classId}/join`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      setJoiningClassId(classId);
+      setJoinRoomConfig({ roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.jwt ?? undefined });
+    }
+    setJoinLoading(null);
+  };
+
   if (authorized === null || loading) return (
     <main><SiteHeader />
       <div className="flex h-64 items-center justify-center">
@@ -154,17 +167,17 @@ export default function StudentDashboardPage() {
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 
         {/* Live video modal */}
-        {joiningEnrollment?.class.meetLink && (
+        {joiningClassId && joinRoomConfig && (
           <div className="mb-8">
             <div className="mb-3 flex items-center justify-between">
               <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> {joiningEnrollment.class.title}
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> {enrollments.find((e) => e.class.id === joiningClassId)?.class.title ?? 'Live session'}
               </span>
-              <button onClick={() => setJoiningClassId(null)} className="rounded-full border border-slate-300 px-4 py-1 text-sm text-slate-600 hover:bg-slate-50">
+              <button onClick={() => { setJoiningClassId(null); setJoinRoomConfig(null); }} className="rounded-full border border-slate-300 px-4 py-1 text-sm text-slate-600 hover:bg-slate-50">
                 Leave session
               </button>
             </div>
-            <DailyRoom roomName={joiningEnrollment.class.meetLink} userName={user?.name} />
+            <DailyRoom roomName={joinRoomConfig.roomName} domain={joinRoomConfig.domain} token={joinRoomConfig.jwt} userName={user?.name} />
           </div>
         )}
 
@@ -212,10 +225,11 @@ export default function StudentDashboardPage() {
               {liveNow.map((e) => (
                 <button
                   key={e.id}
-                  onClick={() => setJoiningClassId(e.class.id)}
-                  className="inline-flex rounded-full bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                  onClick={() => joinClass(e.class.id)}
+                  disabled={joinLoading === e.class.id}
+                  className="inline-flex rounded-full bg-green-600 px-5 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                 >
-                  Join: {e.class.title} →
+                  {joinLoading === e.class.id ? 'Joining…' : `Join: ${e.class.title} →`}
                 </button>
               ))}
             </div>
@@ -262,10 +276,11 @@ export default function StudentDashboardPage() {
                           </Link>
                           {e.status === 'APPROVED' && isLive && (
                             <button
-                              onClick={() => setJoiningClassId(e.class.id)}
-                              className="inline-flex rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
+                              onClick={() => joinClass(e.class.id)}
+                              disabled={joinLoading === e.class.id}
+                              className="inline-flex rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                             >
-                              Join →
+                              {joinLoading === e.class.id ? '…' : 'Join →'}
                             </button>
                           )}
                         </div>

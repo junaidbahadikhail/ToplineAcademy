@@ -53,6 +53,7 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
   const [joining, setJoining] = useState(false);
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [joinRoomName, setJoinRoomName] = useState<string | null>(null);
+  const [joinDomain, setJoinDomain] = useState<string>('meet.jit.si');
   const [joinUserName, setJoinUserName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,8 +97,9 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
       setError(data.error || 'Unable to join session.');
       return;
     }
-    setJoinToken(data.token ?? null);
+    setJoinToken(data.jwt ?? null);
     setJoinRoomName(data.roomName);
+    setJoinDomain(data.domain ?? 'meet.jit.si');
     setJoinUserName(data.userName ?? null);
     setJoining(true);
   };
@@ -139,7 +141,7 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
                 Leave
               </button>
             </div>
-            <DailyRoom roomName={joinRoomName} token={joinToken ?? undefined} userName={joinUserName ?? undefined} />
+            <DailyRoom roomName={joinRoomName} domain={joinDomain} token={joinToken ?? undefined} userName={joinUserName ?? undefined} />
           </div>
         )}
 

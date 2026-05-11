@@ -62,6 +62,7 @@ export default function InstructorDashboardPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveClassId, setLiveClassId] = useState<string | null>(null);
+  const [liveRoomConfig, setLiveRoomConfig] = useState<{ roomName: string; domain: string; jwt?: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '', feePkr: '' });
   const [showCreate, setShowCreate] = useState(false);
@@ -143,6 +144,15 @@ export default function InstructorDashboardPage() {
     fetchClasses();
   };
 
+  const openVideo = async (classId: string) => {
+    const res = await fetch(`/api/classes/${classId}/join`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      setLiveClassId(classId);
+      setLiveRoomConfig({ roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.jwt ?? undefined });
+    }
+  };
+
   const controlSession = async (id: string, action: 'start' | 'end') => {
     setActionLoading(id + '-session');
     await fetch(`/api/classes/${id}/session`, {
@@ -150,8 +160,12 @@ export default function InstructorDashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action }),
     });
-    if (action === 'start') setLiveClassId(id);
-    else if (liveClassId === id) setLiveClassId(null);
+    if (action === 'start') {
+      await openVideo(id);
+    } else if (liveClassId === id) {
+      setLiveClassId(null);
+      setLiveRoomConfig(null);
+    }
     setActionLoading(null);
     fetchClasses();
   };
@@ -297,20 +311,26 @@ export default function InstructorDashboardPage() {
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 
         {/* Live video */}
-        {liveClass?.meetLink && (
+        {liveClassId && liveRoomConfig && (
           <div className="mb-8">
             <div className="mb-3 flex items-center justify-between">
               <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Broadcasting: {liveClass.title}
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Broadcasting: {classes.find((c) => c.id === liveClassId)?.title ?? 'Live session'}
               </span>
               <button
-                onClick={() => controlSession(liveClass.id, 'end')}
+                onClick={() => { if (liveClassId) controlSession(liveClassId, 'end'); }}
                 className="rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700"
               >
                 End session
               </button>
             </div>
-            <DailyRoom roomName={liveClass.meetLink} userName={instructorName ?? undefined} />
+            <DailyRoom
+              roomName={liveRoomConfig.roomName}
+              domain={liveRoomConfig.domain}
+              token={liveRoomConfig.jwt}
+              userName={instructorName ?? undefined}
+              isInstructor
+            />
           </div>
         )}
 
@@ -503,7 +523,7 @@ export default function InstructorDashboardPage() {
                       {isLive && (
                         <>
                           <button
-                            onClick={() => setLiveClassId(cls.id)}
+                            onClick={() => openVideo(cls.id)}
                             className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
                           >
                             Open video
@@ -524,7 +544,7 @@ export default function InstructorDashboardPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => controlSession(cls.id, 'end')}
+                            onClick={() => { controlSession(cls.id, 'end'); }}
                             disabled={sessionBusy}
                             className="rounded-full bg-red-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60"
                           >

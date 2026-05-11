@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 
 interface VideoRoomProps {
   roomName: string;
+  domain?: string;
   token?: string;
   userName?: string;
   isInstructor?: boolean;
@@ -15,23 +16,33 @@ declare global {
   }
 }
 
-export function DailyRoom({ roomName, userName, isInstructor = false }: VideoRoomProps) {
+export function DailyRoom({
+  roomName,
+  domain = 'meet.jit.si',
+  token,
+  userName,
+  isInstructor = false,
+}: VideoRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
 
+    const scriptSrc = `https://${domain}/external_api.js`;
+    const scriptId = `jitsi-api-${domain.replace(/\./g, '-')}`;
+
     const init = () => {
       if (!containerRef.current || !window.JitsiMeetExternalAPI) return;
       if (apiRef.current) { apiRef.current.dispose(); apiRef.current = null; }
 
-      apiRef.current = new window.JitsiMeetExternalAPI('meet.jit.si', {
+      apiRef.current = new window.JitsiMeetExternalAPI(domain, {
         roomName,
+        jwt: token || undefined,
         parentNode: containerRef.current,
         width: '100%',
         height: '100%',
-        userInfo: { displayName: userName || 'Student' },
+        userInfo: { displayName: userName || (isInstructor ? 'Instructor' : 'Student') },
         configOverwrite: {
           startWithAudioMuted: !isInstructor,
           startWithVideoMuted: !isInstructor,
@@ -49,9 +60,7 @@ export function DailyRoom({ roomName, userName, isInstructor = false }: VideoRoo
       });
     };
 
-    const scriptId = 'jitsi-external-api';
     const existing = document.getElementById(scriptId);
-
     if (existing && window.JitsiMeetExternalAPI) {
       init();
     } else if (existing) {
@@ -59,7 +68,7 @@ export function DailyRoom({ roomName, userName, isInstructor = false }: VideoRoo
     } else {
       const s = document.createElement('script');
       s.id = scriptId;
-      s.src = 'https://meet.jit.si/external_api.js';
+      s.src = scriptSrc;
       s.async = true;
       s.onload = init;
       document.head.appendChild(s);
@@ -68,7 +77,7 @@ export function DailyRoom({ roomName, userName, isInstructor = false }: VideoRoo
     return () => {
       if (apiRef.current) { apiRef.current.dispose(); apiRef.current = null; }
     };
-  }, [roomName, userName]);
+  }, [roomName, domain, token, userName, isInstructor]);
 
   return (
     <div

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
+import { getJitsiRoomConfig } from '@/lib/jitsi';
 
 const PRE_JOIN_MS = 15 * 60 * 1000;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -40,29 +41,48 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  const now = Date.now();
-  const start = new Date(cls.scheduleTime).getTime();
-  const earliest = start - PRE_JOIN_MS;
-  const latest = start + SESSION_DURATION_MS;
+  // Instructors and admins can join at any time (they started the session)
+  if (!isOwner) {
+    const now = Date.now();
+    const start = new Date(cls.scheduleTime).getTime();
+    const earliest = start - PRE_JOIN_MS;
+    const latest = start + SESSION_DURATION_MS;
 
-  if (now < earliest) {
-    const minutes = Math.ceil((earliest - now) / 60000);
-    return NextResponse.json(
-      { error: `Session opens in ${minutes} minute${minutes === 1 ? '' : 's'}. Join up to 15 minutes before start.` },
-      { status: 403 }
-    );
-  }
+    if (now < earliest) {
+      const minutes = Math.ceil((earliest - now) / 60000);
+      return NextResponse.json(
+        { error: `Session opens in ${minutes} minute${minutes === 1 ? '' : 's'}. Join up to 15 minutes before start.` },
+        { status: 403 }
+      );
+    }
 
-  if (now > latest) {
-    return NextResponse.json({ error: 'This session has ended.' }, { status: 403 });
+    if (now > latest) {
+      return NextResponse.json({ error: 'This session has ended.' }, { status: 403 });
+    }
   }
 
   const { data: user } = await supabaseAdmin
     .from('User')
-    .select('name')
+    .select('name, email')
     .eq('id', session.userId)
     .single();
 
-  const roomName = cls.meetLink ?? 'toplineacademy-session';
-  return NextResponse.json({ roomName, userName: user?.name ?? session.email });
+  const baseRoomName = cls.meetLink ?? 'toplineacademy-session';
+  const userName = user?.name ?? session.email;
+  const userEmail = user?.email ?? session.email;
+
+  const roomConfig = getJitsiRoomConfig(
+    baseRoomName,
+    session.userId,
+    userName,
+    userEmail,
+    isOwner
+  );
+
+  return NextResponse.json({
+    roomName: roomConfig.roomName,
+    domain: roomConfig.domain,
+    jwt: roomConfig.jwt ?? null,
+    userName,
+  });
 }
