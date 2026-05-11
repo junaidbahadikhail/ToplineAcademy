@@ -6,6 +6,7 @@ interface VideoRoomProps {
   roomName: string;
   token?: string;
   userName?: string;
+  isInstructor?: boolean;
 }
 
 declare global {
@@ -14,7 +15,7 @@ declare global {
   }
 }
 
-export function DailyRoom({ roomName, userName }: VideoRoomProps) {
+export function DailyRoom({ roomName, userName, isInstructor = false }: VideoRoomProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<{ dispose: () => void } | null>(null);
 
@@ -32,7 +33,8 @@ export function DailyRoom({ roomName, userName }: VideoRoomProps) {
         height: '100%',
         userInfo: { displayName: userName || 'Student' },
         configOverwrite: {
-          startWithAudioMuted: true,
+          startWithAudioMuted: !isInstructor,
+          startWithVideoMuted: !isInstructor,
           prejoinPageEnabled: false,
           disableDeepLinking: true,
           enableWelcomePage: false,
