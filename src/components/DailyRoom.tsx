@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import DailyIframe from '@daily-co/daily-js';
 
 interface VideoRoomProps {
-  roomUrl?: string;   // Daily.co full URL → renders as iframe (no moderator screen)
-  roomName?: string;  // Jitsi room name → uses External API
+  roomUrl?: string;   // Daily.co full URL (preferred)
+  roomName?: string;  // Jitsi room name (fallback)
   domain?: string;
   token?: string;
   userName?: string;
@@ -19,23 +20,31 @@ declare global {
 
 const containerClass = 'h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900 overflow-hidden';
 
-// Daily.co prebuilt iframe — no moderator requirement, no login screen
-function DailyIframe({ roomUrl, userName }: { roomUrl: string; userName?: string }) {
-  const url = new URL(roomUrl);
-  if (userName) url.searchParams.set('userName', userName);
-  url.searchParams.set('showLeaveButton', '1');
+function DailyCoRoom({ roomUrl, userName }: { roomUrl: string; userName?: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<ReturnType<typeof DailyIframe.createFrame> | null>(null);
 
-  return (
-    <iframe
-      src={url.toString()}
-      allow="camera; microphone; fullscreen; speaker-selection; display-capture; compute-pressure"
-      className={containerClass}
-      title="Live Session"
-    />
-  );
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const frame = DailyIframe.createFrame(containerRef.current, {
+      iframeStyle: { width: '100%', height: '100%', border: 'none' },
+      showLeaveButton: true,
+      showFullscreenButton: true,
+    });
+    frameRef.current = frame;
+
+    frame.join({ url: roomUrl, userName: userName || undefined });
+
+    return () => {
+      frame.destroy();
+      frameRef.current = null;
+    };
+  }, [roomUrl, userName]);
+
+  return <div ref={containerRef} className={containerClass} />;
 }
 
-// Jitsi External API — used when Daily.co is not configured
 function JitsiRoom({ roomName, domain = 'meet.jit.si', token, userName, isInstructor = false }: {
   roomName: string; domain?: string; token?: string; userName?: string; isInstructor?: boolean;
 }) {
@@ -70,7 +79,6 @@ function JitsiRoom({ roomName, domain = 'meet.jit.si', token, userName, isInstru
         interfaceConfigOverwrite: {
           SHOW_JITSI_WATERMARK: false,
           SHOW_BRAND_WATERMARK: false,
-          TOOLBAR_ALWAYS_VISIBLE: false,
           DEFAULT_BACKGROUND: '#0f172a',
         },
       });
@@ -100,7 +108,7 @@ function JitsiRoom({ roomName, domain = 'meet.jit.si', token, userName, isInstru
 
 export function DailyRoom({ roomUrl, roomName, domain, token, userName, isInstructor }: VideoRoomProps) {
   if (roomUrl) {
-    return <DailyIframe roomUrl={roomUrl} userName={userName} />;
+    return <DailyCoRoom roomUrl={roomUrl} userName={userName} />;
   }
   if (roomName) {
     return <JitsiRoom roomName={roomName} domain={domain} token={token} userName={userName} isInstructor={isInstructor} />;
