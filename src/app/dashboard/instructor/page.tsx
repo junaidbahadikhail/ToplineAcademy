@@ -37,10 +37,10 @@ interface AttendanceStudent {
 }
 
 const statusColor: Record<string, string> = {
-  UPCOMING: 'bg-blue-50 text-blue-700',
-  LIVE_NOW: 'bg-green-100 text-green-700',
-  ENDED: 'bg-slate-100 text-slate-500',
-  CANCELLED: 'bg-red-50 text-red-600',
+  UPCOMING: 'bg-blue-50 text-blue-700 border-blue-200',
+  LIVE_NOW: 'bg-green-100 text-green-700 border-green-200',
+  ENDED: 'bg-slate-100 text-slate-500 border-slate-200',
+  CANCELLED: 'bg-red-50 text-red-600 border-red-200',
 };
 
 function fmt(iso: string) {
@@ -58,6 +58,7 @@ function toDatetimeLocal(iso: string) {
 
 export default function InstructorDashboardPage() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [instructorName, setInstructorName] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveClassId, setLiveClassId] = useState<string | null>(null);
@@ -79,7 +80,6 @@ export default function InstructorDashboardPage() {
       .then((data: ClassItem[]) => {
         setClasses(Array.isArray(data) ? data : []);
         setLoading(false);
-        // Restore recording state for classes that already have notes
         setRecordings((prev) => {
           const next = { ...prev };
           for (const cls of data) {
@@ -105,6 +105,7 @@ export default function InstructorDashboardPage() {
           setAuthorized(false);
           return;
         }
+        setInstructorName(me.user.name ?? null);
         setAuthorized(true);
         fetchClasses();
       })
@@ -195,7 +196,7 @@ export default function InstructorDashboardPage() {
   const openAttendance = async (classId: string) => {
     if (attendanceOpen === classId) { setAttendanceOpen(null); return; }
     setAttendanceOpen(classId);
-    if (attendanceData[classId]) return; // already loaded
+    if (attendanceData[classId]) return;
     const res = await fetch(`/api/attendance/${classId}`);
     if (!res.ok) return;
     const rows = await res.json() as Array<{
@@ -265,8 +266,8 @@ export default function InstructorDashboardPage() {
     setCreateLoading(false);
   };
 
-  if (authorized === null) return (
-    <main><SiteHeader />
+  if (authorized === null || (authorized && loading && classes.length === 0)) return (
+    <main className="min-h-screen bg-slate-50"><SiteHeader />
       <div className="flex h-64 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-950 border-t-transparent" />
       </div>
@@ -274,7 +275,7 @@ export default function InstructorDashboardPage() {
   );
 
   if (!authorized) return (
-    <main><SiteHeader />
+    <main className="min-h-screen bg-slate-50"><SiteHeader />
       <div className="mx-auto max-w-xl py-24 text-center">
         <p className="text-slate-600">Please <Link href="/login" className="underline text-teal-950">login</Link> as an instructor.</p>
       </div>
@@ -283,9 +284,15 @@ export default function InstructorDashboardPage() {
 
   const liveClass = liveClassId ? classes.find((c) => c.id === liveClassId) : null;
   const totalStudents = classes.reduce((s, c) => s + c.enrollments.length, 0);
+  const liveCount = classes.filter((c) => c.status === 'LIVE_NOW').length;
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const nameParts = instructorName?.split(' ') ?? [];
+  const firstName = nameParts.find((p) => p !== 'Ms.' && p !== 'Mr.' && p !== 'Dr.' && p.length > 1) ?? nameParts[0] ?? 'Instructor';
 
   return (
-    <main>
+    <main className="min-h-screen bg-slate-50">
       <SiteHeader />
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 
@@ -303,34 +310,45 @@ export default function InstructorDashboardPage() {
                 End session
               </button>
             </div>
-            <DailyRoom roomName={liveClass.meetLink} />
+            <DailyRoom roomName={liveClass.meetLink} userName={instructorName ?? undefined} />
           </div>
         )}
 
-        {/* Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.25em] text-teal-950/70">Instructor Portal</p>
-            <h1 className="mt-2 text-3xl font-bold text-slate-900">My Dashboard</h1>
+        {/* Coursera-style greeting header */}
+        <div className="mb-8 rounded-2xl bg-teal-950 p-8 text-white">
+          <p className="text-teal-300 text-sm font-medium">{greeting},</p>
+          <h1 className="mt-1 text-3xl font-bold">{firstName}!</h1>
+          <p className="mt-2 text-teal-200 text-sm">
+            {classes.length} class{classes.length !== 1 ? 'es' : ''} · {totalStudents} enrolled student{totalStudents !== 1 ? 's' : ''}
+            {liveCount > 0 && (
+              <span className="ml-2 inline-flex items-center gap-1 text-green-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />{liveCount} live now
+              </span>
+            )}
+          </p>
+          <div className="mt-5">
+            <button
+              onClick={() => setShowCreate(!showCreate)}
+              className="inline-flex rounded-full bg-amber-400 px-5 py-2 text-sm font-bold text-teal-950 hover:bg-amber-300 transition"
+            >
+              {showCreate ? 'Cancel' : '+ Create class'}
+            </button>
           </div>
-          <button
-            onClick={() => setShowCreate(!showCreate)}
-            className="rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900"
-          >
-            {showCreate ? 'Cancel' : '+ Create class'}
-          </button>
         </div>
 
         {/* Stats */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           {[
-            { label: 'My classes', value: classes.length },
-            { label: 'Approved students', value: totalStudents },
-            { label: 'Live now', value: classes.filter((c) => c.status === 'LIVE_NOW').length },
+            { label: 'My Classes', value: classes.length, icon: '📚' },
+            { label: 'Enrolled Students', value: totalStudents, icon: '👥' },
+            { label: 'Live Now', value: liveCount, icon: '🔴' },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-medium text-slate-500">{s.label}</p>
-              <p className="mt-2 text-4xl font-bold text-teal-950">{s.value}</p>
+            <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4">
+              <span className="text-2xl">{s.icon}</span>
+              <div>
+                <p className="text-xs font-medium text-slate-500">{s.label}</p>
+                <p className="text-3xl font-bold text-teal-950">{s.value}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -404,7 +422,6 @@ export default function InstructorDashboardPage() {
             return (
               <div key={cls.id} className={`rounded-2xl border p-6 ${isLive ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white'}`}>
                 {isEditing ? (
-                  /* Edit form */
                   <div>
                     <h3 className="mb-4 font-semibold text-slate-900">Edit Class</h3>
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -449,11 +466,10 @@ export default function InstructorDashboardPage() {
                     </div>
                   </div>
                 ) : (
-                  /* Class card */
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusColor[cls.status]}`}>
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusColor[cls.status] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                           {isLive ? '● LIVE NOW' : cls.status}
                         </span>
                         <span className="text-xs text-slate-400">{cls._count.enrollments} enrolled · {cls.enrollments.length} approved</span>
@@ -544,10 +560,10 @@ export default function InstructorDashboardPage() {
                       )}
                     </div>
                     {recordings[cls.id]?.error && (
-                      <p className="mt-2 text-xs text-red-600">{recordings[cls.id]?.error}</p>
+                      <p className="mt-2 w-full text-xs text-red-600">{recordings[cls.id]?.error}</p>
                     )}
                     {recordings[cls.id]?.phase === 'done' && recordings[cls.id]?.summary && (
-                      <div className="mt-3 rounded-xl bg-teal-50 border border-teal-200 p-3">
+                      <div className="mt-3 w-full rounded-xl bg-teal-50 border border-teal-200 p-3">
                         <p className="text-xs font-semibold text-teal-800 mb-1">Session Summary</p>
                         <p className="text-xs text-teal-700">{recordings[cls.id]?.summary}</p>
                       </div>
@@ -555,7 +571,7 @@ export default function InstructorDashboardPage() {
 
                     {/* Attendance panel */}
                     {attendanceOpen === cls.id && (
-                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="mt-4 w-full rounded-xl border border-slate-200 bg-slate-50 p-4">
                         <p className="text-sm font-semibold text-slate-800 mb-3">Attendance — {cls.title}</p>
                         {!attendanceData[cls.id] ? (
                           <p className="text-xs text-slate-400">Loading…</p>

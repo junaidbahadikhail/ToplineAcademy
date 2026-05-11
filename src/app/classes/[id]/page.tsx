@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
@@ -43,7 +43,7 @@ function fmt(iso: string) {
   }) + ' PKT';
 }
 
-export default function ClassDetailPage({ params }: { params: { id: string } }) {
+function ClassDetailInner({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
   const [cls, setCls] = useState<ClassDetail | null>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -386,5 +386,19 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
         </div>
       </section>
     </main>
+  );
+}
+
+export default function ClassDetailPage({ params }: { params: { id: string } }) {
+  return (
+    <Suspense fallback={
+      <main><SiteHeader />
+        <div className="flex h-64 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-950 border-t-transparent" />
+        </div>
+      </main>
+    }>
+      <ClassDetailInner params={params} />
+    </Suspense>
   );
 }
