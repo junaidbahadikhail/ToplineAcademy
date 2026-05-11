@@ -38,6 +38,7 @@ export function DailyRoom({ roomName, userName, isInstructor = false }: VideoRoo
           prejoinPageEnabled: false,
           disableDeepLinking: true,
           enableWelcomePage: false,
+          startWithoutModerator: true,
         },
         interfaceConfigOverwrite: {
           SHOW_JITSI_WATERMARK: false,
