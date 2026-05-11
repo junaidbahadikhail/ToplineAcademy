@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
 import { DailyRoom } from '@/components/DailyRoom';
@@ -44,14 +44,15 @@ function fmt(iso: string) {
 }
 
 export default function ClassDetailPage({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams();
   const [cls, setCls] = useState<ClassDetail | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [enrollStatus, setEnrollStatus] = useState<EnrollStatus>('none');
+  const [enrollStatus, setEnrollStatus] = useState<EnrollStatus>(
+    searchParams.get('enrolled') === '1' ? 'pending' : 'none'
+  );
   const [joining, setJoining] = useState(false);
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [joinRoomName, setJoinRoomName] = useState<string | null>(null);
-  const [enrolling, setEnrolling] = useState(false);
-  const [proofFile, setProofFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [meetingNote, setMeetingNote] = useState<MeetingNote | null>(null);
@@ -99,72 +100,6 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
     setJoining(true);
   };
 
-  const router = useRouter();
-
-  const enroll = async () => {
-    if (role !== 'STUDENT') {
-      router.push(`/login?redirect=/classes/${params.id}`);
-      return;
-    }
-
-    if (!proofFile) {
-      setError('Please upload your payment screenshot before submitting.');
-      return;
-    }
-
-    setEnrolling(true);
-    setError(null);
-
-    // Step 1: get signed upload URL from server
-    const uploadRes = await fetch('/api/storage/payment-proof', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ classId: params.id, filename: proofFile.name }),
-    });
-
-    if (!uploadRes.ok) {
-      const d = await uploadRes.json();
-      setError(d.error || 'Failed to prepare upload.');
-      setEnrolling(false);
-      return;
-    }
-
-    const { signedUrl, path } = await uploadRes.json();
-
-    // Step 2: PUT file directly to Supabase Storage
-    const putRes = await fetch(signedUrl, {
-      method: 'PUT',
-      body: proofFile,
-      headers: { 'Content-Type': proofFile.type || 'application/octet-stream' },
-    });
-
-    if (!putRes.ok) {
-      setError('Upload failed. Please try again with a smaller image (under 5 MB).');
-      setEnrolling(false);
-      return;
-    }
-
-    // Step 3: create enrollment with proof path
-    const res = await fetch(`/api/classes/${params.id}/enroll`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentProofUrl: path }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      if (res.status === 401) {
-        router.push(`/login?redirect=/classes/${params.id}`);
-        setEnrolling(false);
-        return;
-      }
-      setError(data.error || 'Unable to enroll.');
-    } else {
-      setEnrollStatus('pending');
-      setProofFile(null);
-    }
-    setEnrolling(false);
-  };
 
   if (loading) return (
     <main><SiteHeader />
@@ -181,7 +116,7 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
   );
 
   const isLive = cls.status === 'LIVE_NOW';
-  const canJoin = joining && !!joinToken && !!joinRoomName;
+  const canJoin = joining && !!joinRoomName;
 
   return (
     <main>
@@ -235,111 +170,113 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
               <p className="font-semibold text-slate-800">Enrollment</p>
 
-              {cls.isDemo ? (
-                <div className="mt-4 rounded-2xl bg-teal-50 border border-teal-200 p-4">
-                  <p className="text-sm font-semibold text-teal-800">Demo class</p>
-                  <p className="mt-1 text-sm text-teal-700">This is a preview. Register on Topline Academy to enroll in real classes.</p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <Link href="/register" className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
-                      Create account
+              {/* Not logged in */}
+              {role === null && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-sm text-slate-500">Sign in or create an account to enroll in this class.</p>
+                  <div className="flex flex-wrap gap-3">
+                    <Link href={`/login?redirect=/classes/${params.id}`} className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
+                      Login
                     </Link>
-                    <Link href="/classes" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
-                      Browse real classes
+                    <Link href="/register" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
+                      Create account
                     </Link>
                   </div>
                 </div>
-              ) : (
-                <>
-                  {role === null && (
-                    <div className="mt-4 space-y-3">
-                      <p className="text-sm text-slate-500">Sign in or create an account to enroll in this class.</p>
-                      <div className="flex flex-wrap gap-3">
-                        <Link href="/login" className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900">
-                          Login
-                        </Link>
-                        <Link href="/register" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
-                          Create account
-                        </Link>
-                      </div>
-                    </div>
-                  )}
+              )}
 
-                  {role === 'STUDENT' && enrollStatus === 'none' && (
-                    <div className="mt-4 space-y-4">
-                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <p className="text-sm font-semibold text-amber-800">How to enroll</p>
-                        <ol className="mt-2 space-y-1 text-sm text-amber-700 list-decimal list-inside">
-                          <li>Transfer <strong>PKR {cls.feePkr.toLocaleString()}</strong> via EasyPaisa, JazzCash, or bank transfer</li>
-                          <li>Take a screenshot of your payment confirmation</li>
-                          <li>Upload it below and submit — admin will approve within 24 hours</li>
-                        </ol>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-700 mb-2">Payment screenshot <span className="text-red-500">*</span></p>
-                        <input
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp,image/gif,application/pdf"
-                          onChange={(e) => { setProofFile(e.target.files?.[0] ?? null); setError(null); }}
-                          className="block w-full text-sm text-slate-500 file:mr-3 file:rounded-full file:border-0 file:bg-teal-950 file:px-4 file:py-2 file:text-xs file:font-semibold file:text-white hover:file:bg-teal-900 cursor-pointer"
-                        />
-                        {proofFile && (
-                          <p className="mt-1 text-xs text-teal-700">Selected: {proofFile.name}</p>
-                        )}
-                      </div>
-                      {error && <p className="text-sm text-red-600">{error}</p>}
-                      <button
-                        onClick={enroll}
-                        disabled={enrolling || !proofFile}
-                        className="inline-flex rounded-full bg-teal-950 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60 disabled:cursor-not-allowed"
-                      >
-                        {enrolling ? 'Submitting…' : 'Submit enrollment'}
-                      </button>
+              {/* Student — not yet enrolled */}
+              {role === 'STUDENT' && enrollStatus === 'none' && (
+                <div className="mt-4 space-y-4">
+                  {cls.isDemo && (
+                    <div className="rounded-2xl border border-teal-100 bg-teal-50 p-3.5">
+                      <p className="text-xs text-teal-700">This is a demo preview class. Your enrollment will be submitted for admin review.</p>
                     </div>
                   )}
+                  <p className="text-sm text-slate-600">
+                    Fee: <strong>PKR {cls.feePkr.toLocaleString()}</strong>
+                    {' '}· Pay via bank transfer, EasyPaisa, or card — then submit your proof.
+                  </p>
+                  <Link
+                    href={`/classes/${params.id}/payment`}
+                    className="inline-flex rounded-full bg-teal-950 px-6 py-2.5 text-sm font-semibold text-white hover:bg-teal-900"
+                  >
+                    Enroll now →
+                  </Link>
+                </div>
+              )}
 
-                  {role === 'STUDENT' && enrollStatus === 'pending' && (
-                    <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
-                      <p className="text-sm font-semibold text-amber-800">Enrollment pending</p>
-                      <p className="mt-1 text-sm text-amber-700">Admin will review your enrollment. Check your dashboard for updates.</p>
-                    </div>
-                  )}
+              {/* Student — pending approval */}
+              {role === 'STUDENT' && enrollStatus === 'pending' && (
+                <div className="mt-4 rounded-2xl bg-amber-50 border border-amber-200 p-4">
+                  <p className="text-sm font-semibold text-amber-800">Waiting for approval</p>
+                  <p className="mt-1 text-sm text-amber-700">
+                    Your enrollment has been submitted. Admin will review and approve within 24 hours.
+                    Check your dashboard for updates.
+                  </p>
+                  <Link href="/dashboard/student" className="mt-3 inline-flex text-xs text-amber-800 underline">
+                    View dashboard →
+                  </Link>
+                </div>
+              )}
 
-                  {role === 'STUDENT' && enrollStatus === 'rejected' && (
-                    <div className="mt-4 rounded-2xl bg-red-50 border border-red-200 p-4">
-                      <p className="text-sm font-semibold text-red-700">Enrollment rejected</p>
-                      <p className="mt-1 text-sm text-red-600">Contact support for more information.</p>
-                    </div>
-                  )}
+              {/* Student — rejected */}
+              {role === 'STUDENT' && enrollStatus === 'rejected' && (
+                <div className="mt-4 rounded-2xl bg-red-50 border border-red-200 p-4">
+                  <p className="text-sm font-semibold text-red-700">Enrollment rejected</p>
+                  <p className="mt-1 text-sm text-red-600">Contact support for more information.</p>
+                </div>
+              )}
 
-                  {role === 'STUDENT' && enrollStatus === 'approved' && !isLive && (
-                    <div className="mt-4 rounded-2xl bg-green-50 border border-green-200 p-4">
-                      <p className="text-sm font-semibold text-green-700">You are enrolled</p>
-                      <p className="mt-1 text-sm text-green-600">You can join when the session goes live.</p>
-                      <Link href="/dashboard/student" className="mt-3 inline-flex text-sm underline text-green-700">View in dashboard →</Link>
-                    </div>
-                  )}
+              {/* Student — approved, class not live yet */}
+              {role === 'STUDENT' && enrollStatus === 'approved' && !isLive && (
+                <div className="mt-4 rounded-2xl bg-green-50 border border-green-200 p-4">
+                  <p className="text-sm font-semibold text-green-700">You are enrolled</p>
+                  <p className="mt-1 text-sm text-green-600">You can join when the session goes live.</p>
+                  <Link href="/dashboard/student" className="mt-3 inline-flex text-sm underline text-green-700">
+                    View in dashboard →
+                  </Link>
+                </div>
+              )}
 
-                  {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
-                    <div className="mt-4">
-                      <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
-                      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-                      <button
-                        onClick={joinSession}
-                        className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
-                      >
-                        Join live session →
-                      </button>
-                    </div>
-                  )}
+              {/* Student — approved + live session */}
+              {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
+                <div className="mt-4">
+                  <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
+                  {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+                  <button
+                    onClick={joinSession}
+                    className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                  >
+                    Join live session →
+                  </button>
+                </div>
+              )}
 
-                  {(role === 'INSTRUCTOR' || role === 'ADMIN') && (
-                    <div className="mt-4">
-                      <Link href="/dashboard/instructor" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
-                        Manage in dashboard →
-                      </Link>
-                    </div>
-                  )}
-                </>
+              {/* Demo class — LIVE_NOW — any logged-in user can try it */}
+              {cls.isDemo && isLive && role === 'STUDENT' && enrollStatus !== 'approved' && !joining && (
+                <div className="mt-4">
+                  <p className="text-xs text-slate-500 mb-3">This demo session is live right now. Join without enrollment to preview the classroom.</p>
+                  <button
+                    onClick={() => {
+                      setJoinToken(null);
+                      setJoinRoomName(cls.meetLink ?? 'toplineacademy-session');
+                      setJoining(true);
+                    }}
+                    className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                  >
+                    Join demo session →
+                  </button>
+                </div>
+              )}
+
+              {/* Instructor / Admin */}
+              {(role === 'INSTRUCTOR' || role === 'ADMIN') && (
+                <div className="mt-4">
+                  <Link href="/dashboard/instructor" className="inline-flex rounded-full border border-teal-950 px-5 py-2.5 text-sm font-semibold text-teal-950 hover:bg-teal-50">
+                    Manage in dashboard →
+                  </Link>
+                </div>
               )}
             </div>
           </div>

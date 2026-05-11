@@ -7,6 +7,7 @@ import { CreateClassSchema } from '@/lib/schemas';
 const fallbackClasses = demoClasses.map((item) => ({
   id: item.id,
   title: item.title,
+  subject: item.subject,
   instructor: item.instructor,
   schedule: item.scheduleTime,
   feePkr: item.feePkr,
