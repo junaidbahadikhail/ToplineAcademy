@@ -20,7 +20,17 @@ declare global {
 
 const containerClass = 'h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900 overflow-hidden';
 
-function DailyCoRoom({ roomUrl, userName }: { roomUrl: string; userName?: string }) {
+function DailyCoRoom({
+  roomUrl,
+  token,
+  userName,
+  isInstructor = false,
+}: {
+  roomUrl: string;
+  token?: string;
+  userName?: string;
+  isInstructor?: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<ReturnType<typeof DailyIframe.createFrame> | null>(null);
 
@@ -34,13 +44,20 @@ function DailyCoRoom({ roomUrl, userName }: { roomUrl: string; userName?: string
     });
     frameRef.current = frame;
 
-    frame.join({ url: roomUrl, userName: userName || undefined });
+    frame.join({
+      url: roomUrl,
+      token: token || undefined,
+      userName: userName || undefined,
+      // Students start muted; instructors are live immediately
+      startVideoOff: !isInstructor,
+      startAudioOff: !isInstructor,
+    });
 
     return () => {
       frame.destroy();
       frameRef.current = null;
     };
-  }, [roomUrl, userName]);
+  }, [roomUrl, token, userName, isInstructor]);
 
   return <div ref={containerRef} className={containerClass} />;
 }
@@ -108,7 +125,7 @@ function JitsiRoom({ roomName, domain = 'meet.jit.si', token, userName, isInstru
 
 export function DailyRoom({ roomUrl, roomName, domain, token, userName, isInstructor }: VideoRoomProps) {
   if (roomUrl) {
-    return <DailyCoRoom roomUrl={roomUrl} userName={userName} />;
+    return <DailyCoRoom roomUrl={roomUrl} token={token} userName={userName} isInstructor={isInstructor} />;
   }
   if (roomName) {
     return <JitsiRoom roomName={roomName} domain={domain} token={token} userName={userName} isInstructor={isInstructor} />;

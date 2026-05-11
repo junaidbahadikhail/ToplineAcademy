@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { getJitsiRoomConfig } from '@/lib/jitsi';
-import { createOrGetDailyRoom, hasDailyDomain, getDailyRoomUrl } from '@/lib/daily';
+import { createOrGetDailyRoom, hasDailyDomain, getDailyRoomUrl, createDailyMeetingToken } from '@/lib/daily';
 
 const PRE_JOIN_MS = 15 * 60 * 1000;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -72,16 +71,20 @@ export async function POST(_request: Request, { params }: { params: { id: string
   const userName = user?.name ?? session.email;
   const userEmail = user?.email ?? session.email;
 
-  // Daily.co takes priority — no moderator screen, works immediately
+  // Daily.co — always active when NEXT_PUBLIC_DAILY_DOMAIN is set
   if (hasDailyDomain()) {
     const roomUrl = await createOrGetDailyRoom(baseRoomName) ?? getDailyRoomUrl(baseRoomName);
-    return NextResponse.json({ roomUrl, roomName: baseRoomName, domain: 'daily', jwt: null, userName });
+    // Issue a meeting token so the user joins authenticated without a knock/auth screen
+    const token = await createDailyMeetingToken(baseRoomName, userName, isOwner);
+    return NextResponse.json({ roomUrl, token, roomName: baseRoomName, domain: 'daily', userName });
   }
 
-  // JaaS / Jitsi fallback
+  // Jitsi fallback — only reached when Daily.co domain is not configured
+  const { getJitsiRoomConfig } = await import('@/lib/jitsi');
   const roomConfig = getJitsiRoomConfig(baseRoomName, session.userId, userName, userEmail, isOwner);
   return NextResponse.json({
     roomUrl: null,
+    token: null,
     roomName: roomConfig.roomName,
     domain: roomConfig.domain,
     jwt: roomConfig.jwt ?? null,

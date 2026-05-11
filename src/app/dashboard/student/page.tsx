@@ -129,7 +129,7 @@ export default function StudentDashboardPage() {
     const data = await res.json();
     if (res.ok) {
       setJoiningClassId(classId);
-      setJoinRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.jwt ?? undefined });
+      setJoinRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.token ?? undefined });
     }
     setJoinLoading(null);
   };

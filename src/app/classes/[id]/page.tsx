@@ -99,7 +99,7 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
       return;
     }
     setJoinRoomUrl(data.roomUrl ?? null);
-    setJoinToken(data.jwt ?? null);
+    setJoinToken(data.token ?? null);
     setJoinRoomName(data.roomName);
     setJoinDomain(data.domain ?? 'meet.jit.si');
     setJoinUserName(data.userName ?? null);

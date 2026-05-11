@@ -149,7 +149,7 @@ export default function InstructorDashboardPage() {
     const data = await res.json();
     if (res.ok) {
       setLiveClassId(classId);
-      setLiveRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.jwt ?? undefined });
+      setLiveRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.token ?? undefined });
     }
   };
 
