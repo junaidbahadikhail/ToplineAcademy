@@ -35,9 +35,8 @@ function getOpenAIStatus() {
 
 export async function GET() {
   const session = getSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { error: dbError } = await supabaseAdmin.from('User').select('id').limit(1);
   const databaseStatus = dbError ? 'failed' : 'connected';

@@ -11,7 +11,8 @@ interface Params {
 
 export async function POST(request: Request, { params }: Params) {
   const session = getSession();
-  if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -97,7 +98,7 @@ export async function POST(request: Request, { params }: Params) {
 
 export async function GET(_request: Request, { params }: Params) {
   const session = getSession();
-  if (!session) return NextResponse.json(null);
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (getDemoClassById(params.id)) return NextResponse.json(null);
 

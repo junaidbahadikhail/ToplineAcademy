@@ -1,40 +1,30 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import DailyIframe from '@daily-co/daily-js';
-
-interface DailyRoomProps {
+interface VideoRoomProps {
   roomName: string;
   token?: string;
+  userName?: string;
 }
 
-export function DailyRoom({ roomName, token }: DailyRoomProps) {
-  const frameRef = useRef<HTMLDivElement | null>(null);
+export function DailyRoom({ roomName, userName }: VideoRoomProps) {
+  const clean = roomName.replace(/[^a-zA-Z0-9-_]/g, '-');
+  const display = encodeURIComponent(userName || 'Student');
+  const src = [
+    `https://meet.jit.si/${clean}`,
+    `#userInfo.displayName="${display}"`,
+    `&config.startWithAudioMuted=true`,
+    `&config.disableDeepLinking=true`,
+    `&config.prejoinPageEnabled=false`,
+    `&interfaceConfig.SHOW_JITSI_WATERMARK=false`,
+    `&interfaceConfig.SHOW_BRAND_WATERMARK=false`,
+  ].join('');
 
-  useEffect(() => {
-    if (!frameRef.current) return;
-
-    const domain = process.env.NEXT_PUBLIC_DAILY_DOMAIN;
-    if (!domain) {
-      console.warn('NEXT_PUBLIC_DAILY_DOMAIN is not configured');
-      return;
-    }
-
-    const callFrame = DailyIframe.createFrame(frameRef.current, {
-      url: `https://${domain}/${roomName}`,
-      token,
-      showLeaveButton: true,
-      iframeStyle: {
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-      },
-    });
-
-    return () => {
-      callFrame.destroy();
-    };
-  }, [roomName, token]);
-
-  return <div ref={frameRef} className="h-[650px] rounded-3xl border border-slate-200 bg-black" />;
+  return (
+    <iframe
+      src={src}
+      allow="camera; microphone; fullscreen; display-capture; autoplay"
+      className="h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900"
+      title="Live Session"
+    />
+  );
 }

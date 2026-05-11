@@ -4,7 +4,8 @@ import { getSession } from '@/lib/get-session';
 
 export async function GET() {
   const session = getSession();
-  if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -16,11 +17,10 @@ export async function GET() {
 
   const result = (classes ?? []).map((cls) => {
     const allEnrollments = (cls.Enrollment as { id: string; status: string }[] | null) ?? [];
-    const approvedEnrollments = allEnrollments.filter((e) => e.status === 'APPROVED');
     return {
       ...cls,
       _count: { enrollments: allEnrollments.length },
-      enrollments: approvedEnrollments,
+      enrollments: allEnrollments,
       meetingNote: cls.MeetingNote ?? null,
       Enrollment: undefined,
       MeetingNote: undefined,

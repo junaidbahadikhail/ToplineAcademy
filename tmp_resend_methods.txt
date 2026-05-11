@@ -1,0 +1,826 @@
+
+> node_modules\resend\dist\index.d.mts:14: * - GET /emails/{id}/attachments
+> node_modules\resend\dist\index.d.mts:15: * - GET 
+/emails/{id}/attachments/{id}
+> node_modules\resend\dist\index.d.mts:16: * - GET 
+/emails/receiving/{id}/attachments
+> node_modules\resend\dist\index.d.mts:17: * - GET 
+/emails/receiving/{id}/attachments/{id}
+  node_modules\resend\dist\index.d.mts:18: *
+  node_modules\resend\dist\index.d.mts:19: * Not to be confused with 
+InboundAttachment, which is the raw metadata
+  node_modules\resend\dist\index.d.mts:20: * embedded inside GET 
+/inbounds/{id} — no signed URL, nullable DB columns.
+  node_modules\resend\dist\index.d.mts:21: */
+  node_modules\resend\dist\index.d.mts:22:interface AttachmentData {
+> node_modules\resend\dist\index.d.mts:33://#region 
+src/domains/interfaces/domain.d.ts
+  node_modules\resend\dist\index.d.mts:34:type DomainRegion = 'us-east-1' | 
+'eu-west-1' | 'sa-east-1' | 'ap-northeast-1';
+  node_modules\resend\dist\index.d.mts:35:type DomainCapabilityStatus = 
+'enabled' | 'disabled';
+  node_modules\resend\dist\index.d.mts:36:interface DomainCapabilities {
+  node_modules\resend\dist\index.d.mts:37:  sending: DomainCapabilityStatus;
+  node_modules\resend\dist\index.d.mts:38:  receiving: DomainCapabilityStatus;
+> node_modules\resend\dist\index.d.mts:40:type DomainNameservers = 'Amazon 
+Route 53' | 'Cloudflare' | 'Digital Ocean' | 'GoDaddy' | 'Google Domains' | 
+'Namecheap' | 'Unidentified' | 'Vercel';
+  node_modules\resend\dist\index.d.mts:41:type DomainRecordStatus = 'pending' 
+| 'verified' | 'failed' | 'temporary_failure' | 'not_started';
+> node_modules\resend\dist\index.d.mts:42:type DomainStatus = 'pending' | 
+'verified' | 'failed' | 'not_started' | 'partially_verified' | 
+'partially_failed';
+> node_modules\resend\dist\index.d.mts:43:type DomainRecords = DomainSpfRecord 
+| DomainDkimRecord | ReceivingRecord | TrackingRecord | TrackingCaaRecord;
+> node_modules\resend\dist\index.d.mts:44:interface DomainSpfRecord {
+  node_modules\resend\dist\index.d.mts:45:  record: 'SPF';
+  node_modules\resend\dist\index.d.mts:46:  name: string;
+  node_modules\resend\dist\index.d.mts:47:  value: string;
+  node_modules\resend\dist\index.d.mts:48:  type: 'MX' | 'TXT';
+  node_modules\resend\dist\index.d.mts:49:  ttl: string;
+> node_modules\resend\dist\index.d.mts:94:  status: DomainStatus;
+  node_modules\resend\dist\index.d.mts:95:  created_at: string;
+  node_modules\resend\dist\index.d.mts:96:  region: DomainRegion;
+  node_modules\resend\dist\index.d.mts:97:  capabilities: DomainCapabilities;
+  node_modules\resend\dist\index.d.mts:98:  open_tracking?: boolean;
+  node_modules\resend\dist\index.d.mts:99:  click_tracking?: boolean;
+> node_modules\resend\dist\index.d.mts:247:type ListApiKeysOptions = 
+PaginationOptions;
+> node_modules\resend\dist\index.d.mts:248:type ListApiKeysResponseSuccess = {
+  node_modules\resend\dist\index.d.mts:249:  object: 'list';
+  node_modules\resend\dist\index.d.mts:250:  has_more: boolean;
+  node_modules\resend\dist\index.d.mts:251:  data: Pick<ApiKey, 'name' | 'id' 
+| 'created_at' | 'last_used_at'>[];
+  node_modules\resend\dist\index.d.mts:252:};
+> node_modules\resend\dist\index.d.mts:253:type ListApiKeysResponse = 
+Response<ListApiKeysResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:254://#endregion
+  node_modules\resend\dist\index.d.mts:255://#region 
+src/api-keys/interfaces/remove-api-keys.interface.d.ts
+  node_modules\resend\dist\index.d.mts:256:type RemoveApiKeyResponseSuccess = 
+{};
+  node_modules\resend\dist\index.d.mts:257:type RemoveApiKeyResponse = 
+Response<RemoveApiKeyResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:258://#endregion
+> node_modules\resend\dist\index.d.mts:295:interface SendEmailStepConfig {
+  node_modules\resend\dist\index.d.mts:296:  template: {
+  node_modules\resend\dist\index.d.mts:297:    id: string;
+  node_modules\resend\dist\index.d.mts:298:    variables?: Record<string, 
+TemplateVariableValue>;
+  node_modules\resend\dist\index.d.mts:299:  };
+  node_modules\resend\dist\index.d.mts:300:  subject?: string;
+> node_modules\resend\dist\index.d.mts:339:  config: SendEmailStepConfig;
+  node_modules\resend\dist\index.d.mts:340:} | {
+  node_modules\resend\dist\index.d.mts:341:  key: string;
+  node_modules\resend\dist\index.d.mts:342:  type: 'wait_for_event';
+  node_modules\resend\dist\index.d.mts:343:  config: WaitForEventStepConfig;
+  node_modules\resend\dist\index.d.mts:344:} | {
+> node_modules\resend\dist\index.d.mts:484://#region 
+src/emails/interfaces/create-email-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:485:interface EmailRenderOptions$1 {
+  node_modules\resend\dist\index.d.mts:486:  /**
+  node_modules\resend\dist\index.d.mts:487:   * The React component used to 
+write the message.
+  node_modules\resend\dist\index.d.mts:488:   *
+> node_modules\resend\dist\index.d.mts:489:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:490:   */
+  node_modules\resend\dist\index.d.mts:491:  react: React$1.ReactNode;
+  node_modules\resend\dist\index.d.mts:492:  /**
+  node_modules\resend\dist\index.d.mts:493:   * The HTML version of the 
+message.
+  node_modules\resend\dist\index.d.mts:494:   *
+> node_modules\resend\dist\index.d.mts:495:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:496:   */
+  node_modules\resend\dist\index.d.mts:497:  html: string;
+  node_modules\resend\dist\index.d.mts:498:  /**
+  node_modules\resend\dist\index.d.mts:499:   * The plain text version of the 
+message.
+  node_modules\resend\dist\index.d.mts:500:   *
+> node_modules\resend\dist\index.d.mts:501:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:502:   */
+  node_modules\resend\dist\index.d.mts:503:  text: string;
+  node_modules\resend\dist\index.d.mts:504:}
+  node_modules\resend\dist\index.d.mts:505:interface EmailTemplateOptions {
+  node_modules\resend\dist\index.d.mts:506:  template: {
+> node_modules\resend\dist\index.d.mts:519:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:520:   */
+  node_modules\resend\dist\index.d.mts:521:  attachments?: Attachment[];
+  node_modules\resend\dist\index.d.mts:522:  /**
+  node_modules\resend\dist\index.d.mts:523:   * Blind carbon copy recipient 
+email address. For multiple addresses, send as an array of strings.
+  node_modules\resend\dist\index.d.mts:524:   *
+> node_modules\resend\dist\index.d.mts:525:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:526:   */
+  node_modules\resend\dist\index.d.mts:527:  bcc?: string | string[];
+  node_modules\resend\dist\index.d.mts:528:  /**
+  node_modules\resend\dist\index.d.mts:529:   * Carbon copy recipient email 
+address. For multiple addresses, send as an array of strings.
+  node_modules\resend\dist\index.d.mts:530:   *
+> node_modules\resend\dist\index.d.mts:531:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:532:   */
+  node_modules\resend\dist\index.d.mts:533:  cc?: string | string[];
+  node_modules\resend\dist\index.d.mts:534:  /**
+  node_modules\resend\dist\index.d.mts:535:   * Sender email address. To 
+include a friendly name, use the format `"Your Name <sender@domain.com>"`
+  node_modules\resend\dist\index.d.mts:536:   *
+> node_modules\resend\dist\index.d.mts:537:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:538:   */
+  node_modules\resend\dist\index.d.mts:539:  from: string;
+  node_modules\resend\dist\index.d.mts:540:  /**
+  node_modules\resend\dist\index.d.mts:541:   * Custom headers to add to the 
+email.
+  node_modules\resend\dist\index.d.mts:542:   *
+> node_modules\resend\dist\index.d.mts:543:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:544:   */
+  node_modules\resend\dist\index.d.mts:545:  headers?: Record<string, string>;
+  node_modules\resend\dist\index.d.mts:546:  /**
+  node_modules\resend\dist\index.d.mts:547:   * Reply-to email address. For 
+multiple addresses, send as an array of strings.
+  node_modules\resend\dist\index.d.mts:548:   *
+> node_modules\resend\dist\index.d.mts:549:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:550:   */
+  node_modules\resend\dist\index.d.mts:551:  replyTo?: string | string[];
+  node_modules\resend\dist\index.d.mts:552:  /**
+  node_modules\resend\dist\index.d.mts:553:   * Email subject.
+  node_modules\resend\dist\index.d.mts:554:   *
+> node_modules\resend\dist\index.d.mts:555:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:556:   */
+  node_modules\resend\dist\index.d.mts:557:  subject: string;
+  node_modules\resend\dist\index.d.mts:558:  /**
+  node_modules\resend\dist\index.d.mts:559:   * Email tags
+  node_modules\resend\dist\index.d.mts:560:   *
+> node_modules\resend\dist\index.d.mts:561:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:562:   */
+  node_modules\resend\dist\index.d.mts:563:  tags?: Tag[];
+  node_modules\resend\dist\index.d.mts:564:  /**
+  node_modules\resend\dist\index.d.mts:565:   * Recipient email address. For 
+multiple addresses, send as an array of strings. Max 50.
+  node_modules\resend\dist\index.d.mts:566:   *
+> node_modules\resend\dist\index.d.mts:567:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:568:   */
+  node_modules\resend\dist\index.d.mts:569:  to: string | string[];
+  node_modules\resend\dist\index.d.mts:570:  /**
+  node_modules\resend\dist\index.d.mts:571:   * The id of the topic you want 
+to send to
+  node_modules\resend\dist\index.d.mts:572:   *
+> node_modules\resend\dist\index.d.mts:573:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:574:   */
+  node_modules\resend\dist\index.d.mts:575:  topicId?: string | null;
+  node_modules\resend\dist\index.d.mts:576:  /**
+  node_modules\resend\dist\index.d.mts:577:   * Schedule email to be sent 
+later.
+  node_modules\resend\dist\index.d.mts:578:   * The date should be in ISO 8601 
+format (e.g: 2024-08-05T11:52:01.858Z).
+> node_modules\resend\dist\index.d.mts:580:   * @link 
+https://resend.com/docs/api-reference/emails/send-email#body-parameters
+  node_modules\resend\dist\index.d.mts:581:   */
+  node_modules\resend\dist\index.d.mts:582:  scheduledAt?: string;
+  node_modules\resend\dist\index.d.mts:583:}
+  node_modules\resend\dist\index.d.mts:584:type CreateEmailOptions = 
+((RequireAtLeastOne<EmailRenderOptions$1> & CreateEmailBaseOptions) & {
+  node_modules\resend\dist\index.d.mts:585:  template?: never;
+> node_modules\resend\dist\index.d.mts:628: * @link 
+https://resend.com/docs/dashboard/emails/batch-sending#limitations
+  node_modules\resend\dist\index.d.mts:629: */
+  node_modules\resend\dist\index.d.mts:630:type CreateBatchEmailOptions = 
+Omit<CreateEmailOptions, 'attachments' | 'scheduledAt'>;
+  node_modules\resend\dist\index.d.mts:631:type CreateBatchOptions = 
+CreateBatchEmailOptions[];
+  node_modules\resend\dist\index.d.mts:632:interface CreateBatchRequestOptions 
+extends PostOptions, IdempotentRequest {
+  node_modules\resend\dist\index.d.mts:633:  /**
+> node_modules\resend\dist\index.d.mts:1159://#region 
+src/domains/interfaces/create-domain-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1160:interface CreateDomainOptions {
+  node_modules\resend\dist\index.d.mts:1161:  name: string;
+  node_modules\resend\dist\index.d.mts:1162:  region?: DomainRegion;
+  node_modules\resend\dist\index.d.mts:1163:  customReturnPath?: string;
+  node_modules\resend\dist\index.d.mts:1164:  capabilities?: 
+Partial<DomainCapabilities>;
+> node_modules\resend\dist\index.d.mts:1177://#region 
+src/domains/interfaces/get-domain.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1178:interface GetDomainResponseSuccess 
+extends Pick<Domain, 'id' | 'name' | 'created_at' | 'region' | 'status' | 
+'capabilities' | 'open_tracking' | 'click_tracking' | 'tracking_subdomain'> {
+  node_modules\resend\dist\index.d.mts:1179:  object: 'domain';
+  node_modules\resend\dist\index.d.mts:1180:  records: DomainRecords[];
+  node_modules\resend\dist\index.d.mts:1181:}
+  node_modules\resend\dist\index.d.mts:1182:type GetDomainResponse = 
+Response<GetDomainResponseSuccess>;
+> node_modules\resend\dist\index.d.mts:1184://#region 
+src/domains/interfaces/list-domains.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1185:type ListDomainsOptions = 
+PaginationOptions;
+> node_modules\resend\dist\index.d.mts:1186:type ListDomainsResponseSuccess = {
+  node_modules\resend\dist\index.d.mts:1187:  data: Domain[];
+  node_modules\resend\dist\index.d.mts:1188:  object: 'list';
+  node_modules\resend\dist\index.d.mts:1189:  has_more: boolean;
+  node_modules\resend\dist\index.d.mts:1190:};
+> node_modules\resend\dist\index.d.mts:1191:type ListDomainsResponse = 
+Response<ListDomainsResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1192://#endregion
+> node_modules\resend\dist\index.d.mts:1193://#region 
+src/domains/interfaces/remove-domain.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1194:type RemoveDomainsResponseSuccess 
+= Pick<Domain, 'id'> & {
+  node_modules\resend\dist\index.d.mts:1195:  object: 'domain';
+  node_modules\resend\dist\index.d.mts:1196:  deleted: boolean;
+  node_modules\resend\dist\index.d.mts:1197:};
+> node_modules\resend\dist\index.d.mts:1198:type RemoveDomainsResponse = 
+Response<RemoveDomainsResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1199://#endregion
+> node_modules\resend\dist\index.d.mts:1200://#region 
+src/domains/interfaces/update-domain.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1201:interface UpdateDomainsOptions {
+  node_modules\resend\dist\index.d.mts:1202:  id: string;
+  node_modules\resend\dist\index.d.mts:1203:  clickTracking?: boolean;
+  node_modules\resend\dist\index.d.mts:1204:  openTracking?: boolean;
+  node_modules\resend\dist\index.d.mts:1205:  tls?: 'enforced' | 
+'opportunistic';
+  node_modules\resend\dist\index.d.mts:1206:  capabilities?: 
+Partial<DomainCapabilities>;
+> node_modules\resend\dist\index.d.mts:1209:type UpdateDomainsResponseSuccess 
+= Pick<Domain, 'id'> & {
+  node_modules\resend\dist\index.d.mts:1210:  object: 'domain';
+  node_modules\resend\dist\index.d.mts:1211:};
+> node_modules\resend\dist\index.d.mts:1212:type UpdateDomainsResponse = 
+Response<UpdateDomainsResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1213://#endregion
+> node_modules\resend\dist\index.d.mts:1214://#region 
+src/domains/interfaces/verify-domain.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1215:type VerifyDomainsResponseSuccess 
+= Pick<Domain, 'id'> & {
+  node_modules\resend\dist\index.d.mts:1216:  object: 'domain';
+  node_modules\resend\dist\index.d.mts:1217:};
+> node_modules\resend\dist\index.d.mts:1218:type VerifyDomainsResponse = 
+Response<VerifyDomainsResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1219://#endregion
+> node_modules\resend\dist\index.d.mts:1220://#region 
+src/emails/attachments/interfaces/get-attachment.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1221:interface GetAttachmentOptions {
+  node_modules\resend\dist\index.d.mts:1222:  emailId: string;
+  node_modules\resend\dist\index.d.mts:1223:  id: string;
+  node_modules\resend\dist\index.d.mts:1224:}
+  node_modules\resend\dist\index.d.mts:1225:type GetAttachmentResponseSuccess 
+= {
+> node_modules\resend\dist\index.d.mts:1230://#region 
+src/emails/attachments/interfaces/list-attachments.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1231:type ListAttachmentsOptions = 
+PaginationOptions & {
+  node_modules\resend\dist\index.d.mts:1232:  emailId: string;
+  node_modules\resend\dist\index.d.mts:1233:};
+  node_modules\resend\dist\index.d.mts:1234:interface 
+ListAttachmentsResponseSuccess {
+  node_modules\resend\dist\index.d.mts:1235:  object: 'list';
+> node_modules\resend\dist\index.d.mts:1241://#region 
+src/emails/interfaces/cancel-email-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1242:interface 
+CancelEmailResponseSuccess {
+  node_modules\resend\dist\index.d.mts:1243:  object: 'email';
+  node_modules\resend\dist\index.d.mts:1244:  id: string;
+  node_modules\resend\dist\index.d.mts:1245:}
+  node_modules\resend\dist\index.d.mts:1246:type CancelEmailResponse = 
+Response<CancelEmailResponseSuccess>;
+> node_modules\resend\dist\index.d.mts:1248://#region 
+src/emails/interfaces/get-email-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1249:interface GetEmailResponseSuccess {
+  node_modules\resend\dist\index.d.mts:1250:  bcc: string[] | null;
+  node_modules\resend\dist\index.d.mts:1251:  cc: string[] | null;
+  node_modules\resend\dist\index.d.mts:1252:  created_at: string;
+  node_modules\resend\dist\index.d.mts:1253:  from: string;
+> node_modules\resend\dist\index.d.mts:1271://#region 
+src/emails/interfaces/list-emails-options.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1272:type ListEmailsOptions = 
+PaginationOptions;
+  node_modules\resend\dist\index.d.mts:1273:type ListEmail = 
+Omit<GetEmailResponseSuccess, 'html' | 'text' | 'tags' | 'object'>;
+> node_modules\resend\dist\index.d.mts:1274:type ListEmailsResponseSuccess = {
+  node_modules\resend\dist\index.d.mts:1275:  object: 'list';
+  node_modules\resend\dist\index.d.mts:1276:  has_more: boolean;
+  node_modules\resend\dist\index.d.mts:1277:  data: ListEmail[];
+  node_modules\resend\dist\index.d.mts:1278:};
+> node_modules\resend\dist\index.d.mts:1279:type ListEmailsResponse = 
+Response<ListEmailsResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1280://#endregion
+> node_modules\resend\dist\index.d.mts:1281://#region 
+src/emails/interfaces/update-email-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1282:interface UpdateEmailOptions {
+  node_modules\resend\dist\index.d.mts:1283:  id: string;
+  node_modules\resend\dist\index.d.mts:1284:  scheduledAt: string;
+  node_modules\resend\dist\index.d.mts:1285:}
+  node_modules\resend\dist\index.d.mts:1286:interface 
+UpdateEmailResponseSuccess {
+> node_modules\resend\dist\index.d.mts:1292://#region 
+src/emails/receiving/interfaces/forward-receiving-email.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1293:interface 
+ForwardReceivingEmailBodyOptions {
+  node_modules\resend\dist\index.d.mts:1294:  text: string;
+  node_modules\resend\dist\index.d.mts:1295:  html: string;
+  node_modules\resend\dist\index.d.mts:1296:}
+  node_modules\resend\dist\index.d.mts:1297:interface 
+ForwardReceivingEmailBaseOptions {
+> node_modules\resend\dist\index.d.mts:1312://#region 
+src/emails/receiving/interfaces/get-receiving-email.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1313:/**
+  node_modules\resend\dist\index.d.mts:1314: * Attachment metadata embedded in 
+the GET /inbounds/{id} response.
+  node_modules\resend\dist\index.d.mts:1315: * These are raw DB values — 
+fields are nullable and content_disposition is
+  node_modules\resend\dist\index.d.mts:1316: * not normalized to a literal 
+union.
+  node_modules\resend\dist\index.d.mts:1317: *
+> node_modules\resend\dist\index.d.mts:1351://#region 
+src/emails/receiving/interfaces/list-receiving-emails.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1352:type ListReceivingEmailsOptions = 
+PaginationOptions;
+  node_modules\resend\dist\index.d.mts:1353:type ListReceivingEmail = 
+Omit<GetReceivingEmailResponseSuccess, 'html' | 'text' | 'headers' | 'raw' | 
+'object'>;
+> node_modules\resend\dist\index.d.mts:1354:interface 
+ListReceivingEmailsResponseSuccess {
+  node_modules\resend\dist\index.d.mts:1355:  object: 'list';
+  node_modules\resend\dist\index.d.mts:1356:  has_more: boolean;
+  node_modules\resend\dist\index.d.mts:1357:  data: ListReceivingEmail[];
+  node_modules\resend\dist\index.d.mts:1358:}
+> node_modules\resend\dist\index.d.mts:1359:type ListReceivingEmailsResponse = 
+{
+> node_modules\resend\dist\index.d.mts:1360:  data: 
+ListReceivingEmailsResponseSuccess;
+  node_modules\resend\dist\index.d.mts:1361:  error: null;
+  node_modules\resend\dist\index.d.mts:1362:} | {
+  node_modules\resend\dist\index.d.mts:1363:  data: null;
+  node_modules\resend\dist\index.d.mts:1364:  error: ErrorResponse;
+  node_modules\resend\dist\index.d.mts:1365:};
+> node_modules\resend\dist\index.d.mts:1467:declare class ApiKeys {
+  node_modules\resend\dist\index.d.mts:1468:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1469:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1470:  create(payload: 
+CreateApiKeyOptions, options?: CreateApiKeyRequestOptions): 
+Promise<CreateApiKeyResponse>;
+> node_modules\resend\dist\index.d.mts:1471:  list(options?: 
+ListApiKeysOptions): Promise<ListApiKeysResponse>;
+  node_modules\resend\dist\index.d.mts:1472:  remove(id: string): 
+Promise<RemoveApiKeyResponse>;
+  node_modules\resend\dist\index.d.mts:1473:}
+  node_modules\resend\dist\index.d.mts:1474://#endregion
+  node_modules\resend\dist\index.d.mts:1475://#region 
+src/automation-runs/automation-runs.d.ts
+  node_modules\resend\dist\index.d.mts:1476:declare class AutomationRuns {
+> node_modules\resend\dist\index.d.mts:1558://#region src/domains/domains.d.ts
+> node_modules\resend\dist\index.d.mts:1559:declare class Domains {
+  node_modules\resend\dist\index.d.mts:1560:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1561:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1562:  create(payload: 
+CreateDomainOptions, options?: CreateDomainRequestOptions): 
+Promise<CreateDomainResponse>;
+> node_modules\resend\dist\index.d.mts:1563:  list(options?: 
+ListDomainsOptions): Promise<ListDomainsResponse>;
+  node_modules\resend\dist\index.d.mts:1564:  get(id: string): 
+Promise<GetDomainResponse>;
+> node_modules\resend\dist\index.d.mts:1565:  update(payload: 
+UpdateDomainsOptions): Promise<UpdateDomainsResponse>;
+> node_modules\resend\dist\index.d.mts:1566:  remove(id: string): 
+Promise<RemoveDomainsResponse>;
+> node_modules\resend\dist\index.d.mts:1567:  verify(id: string): 
+Promise<VerifyDomainsResponse>;
+  node_modules\resend\dist\index.d.mts:1568:}
+  node_modules\resend\dist\index.d.mts:1569://#endregion
+> node_modules\resend\dist\index.d.mts:1570://#region 
+src/emails/attachments/attachments.d.ts
+  node_modules\resend\dist\index.d.mts:1571:declare class Attachments$1 {
+  node_modules\resend\dist\index.d.mts:1572:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1573:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1574:  get(options: 
+GetAttachmentOptions): Promise<GetAttachmentResponse>;
+  node_modules\resend\dist\index.d.mts:1575:  list(options: 
+ListAttachmentsOptions): Promise<ListAttachmentsResponse>;
+> node_modules\resend\dist\index.d.mts:1578://#region 
+src/emails/receiving/attachments/attachments.d.ts
+  node_modules\resend\dist\index.d.mts:1579:declare class Attachments {
+  node_modules\resend\dist\index.d.mts:1580:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1581:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1582:  get(options: 
+GetAttachmentOptions): Promise<GetAttachmentResponse>;
+  node_modules\resend\dist\index.d.mts:1583:  list(options: 
+ListAttachmentsOptions): Promise<ListAttachmentsResponse>;
+> node_modules\resend\dist\index.d.mts:1586://#region 
+src/emails/receiving/receiving.d.ts
+  node_modules\resend\dist\index.d.mts:1587:declare class Receiving {
+  node_modules\resend\dist\index.d.mts:1588:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1589:  readonly attachments: 
+Attachments;
+  node_modules\resend\dist\index.d.mts:1590:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1591:  get(id: string): 
+Promise<GetReceivingEmailResponse>;
+> node_modules\resend\dist\index.d.mts:1592:  list(options?: 
+ListReceivingEmailsOptions): Promise<ListReceivingEmailsResponse>;
+  node_modules\resend\dist\index.d.mts:1593:  forward(options: 
+ForwardReceivingEmailOptions): Promise<ForwardReceivingEmailResponse>;
+  node_modules\resend\dist\index.d.mts:1594:  private forwardPassthrough;
+  node_modules\resend\dist\index.d.mts:1595:  private forwardWrapped;
+  node_modules\resend\dist\index.d.mts:1596:}
+  node_modules\resend\dist\index.d.mts:1597://#endregion
+> node_modules\resend\dist\index.d.mts:1598://#region src/emails/emails.d.ts
+> node_modules\resend\dist\index.d.mts:1599:declare class Emails {
+  node_modules\resend\dist\index.d.mts:1600:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1601:  readonly attachments: 
+Attachments$1;
+  node_modules\resend\dist\index.d.mts:1602:  readonly receiving: Receiving;
+  node_modules\resend\dist\index.d.mts:1603:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1604:  send(payload: 
+CreateEmailOptions, options?: CreateEmailRequestOptions): 
+Promise<CreateEmailResponse>;
+> node_modules\resend\dist\index.d.mts:1607:  list(options?: 
+ListEmailsOptions): Promise<ListEmailsResponse>;
+  node_modules\resend\dist\index.d.mts:1608:  update(payload: 
+UpdateEmailOptions): Promise<UpdateEmailResponse>;
+  node_modules\resend\dist\index.d.mts:1609:  cancel(id: string): 
+Promise<CancelEmailResponse>;
+  node_modules\resend\dist\index.d.mts:1610:}
+  node_modules\resend\dist\index.d.mts:1611://#endregion
+  node_modules\resend\dist\index.d.mts:1612://#region src/events/events.d.ts
+> node_modules\resend\dist\index.d.mts:1674://#region 
+src/templates/interfaces/template.d.ts
+  node_modules\resend\dist\index.d.mts:1675:interface Template {
+  node_modules\resend\dist\index.d.mts:1676:  id: string;
+  node_modules\resend\dist\index.d.mts:1677:  name: string;
+  node_modules\resend\dist\index.d.mts:1678:  subject: string | null;
+  node_modules\resend\dist\index.d.mts:1679:  html: string;
+> node_modules\resend\dist\index.d.mts:1700://#region 
+src/templates/interfaces/create-template-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1701:type 
+TemplateContentCreationOptions = RequireAtLeastOne<{
+  node_modules\resend\dist\index.d.mts:1702:  html: string;
+  node_modules\resend\dist\index.d.mts:1703:  react: React.ReactNode;
+  node_modules\resend\dist\index.d.mts:1704:}>;
+  node_modules\resend\dist\index.d.mts:1705:type 
+TemplateVariableCreationOptions = Pick<TemplateVariable, 'key' | 'type'> & ({
+> node_modules\resend\dist\index.d.mts:1723://#region 
+src/templates/interfaces/duplicate-template.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1724:interface 
+DuplicateTemplateResponseSuccess extends Pick<Template, 'id'> {
+  node_modules\resend\dist\index.d.mts:1725:  object: 'template';
+  node_modules\resend\dist\index.d.mts:1726:}
+  node_modules\resend\dist\index.d.mts:1727:type DuplicateTemplateResponse = 
+Response<DuplicateTemplateResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1728://#endregion
+> node_modules\resend\dist\index.d.mts:1729://#region 
+src/templates/interfaces/publish-template.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1730:interface 
+PublishTemplateResponseSuccess extends Pick<Template, 'id'> {
+  node_modules\resend\dist\index.d.mts:1731:  object: 'template';
+  node_modules\resend\dist\index.d.mts:1732:}
+  node_modules\resend\dist\index.d.mts:1733:type PublishTemplateResponse = 
+Response<PublishTemplateResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1734://#endregion
+> node_modules\resend\dist\index.d.mts:1735://#region 
+src/templates/chainable-template-result.d.ts
+  node_modules\resend\dist\index.d.mts:1736:declare class 
+ChainableTemplateResult<T extends CreateTemplateResponse | 
+DuplicateTemplateResponse> implements PromiseLike<T> {
+  node_modules\resend\dist\index.d.mts:1737:  private readonly promise;
+  node_modules\resend\dist\index.d.mts:1738:  private readonly publishFn;
+  node_modules\resend\dist\index.d.mts:1739:  constructor(promise: Promise<T>, 
+publishFn: (id: string) => Promise<PublishTemplateResponse>);
+  node_modules\resend\dist\index.d.mts:1740:  then<TResult1 = T, TResult2 = 
+never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null, 
+onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null): 
+PromiseLike<TResult1 | TResult2>;
+> node_modules\resend\dist\index.d.mts:1744://#region 
+src/templates/interfaces/get-template.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1745:interface 
+GetTemplateResponseSuccess extends Template {
+  node_modules\resend\dist\index.d.mts:1746:  object: 'template';
+  node_modules\resend\dist\index.d.mts:1747:}
+  node_modules\resend\dist\index.d.mts:1748:type GetTemplateResponse = 
+Response<GetTemplateResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1749://#endregion
+> node_modules\resend\dist\index.d.mts:1750://#region 
+src/templates/interfaces/list-templates.interface.d.ts
+> node_modules\resend\dist\index.d.mts:1751:type ListTemplatesOptions = 
+PaginationOptions;
+  node_modules\resend\dist\index.d.mts:1752:interface TemplateListItem extends 
+Pick<Template, 'id' | 'name' | 'created_at' | 'updated_at' | 'status' | 
+'published_at' | 'alias'> {}
+> node_modules\resend\dist\index.d.mts:1753:interface 
+ListTemplatesResponseSuccess {
+  node_modules\resend\dist\index.d.mts:1754:  object: 'list';
+  node_modules\resend\dist\index.d.mts:1755:  data: TemplateListItem[];
+  node_modules\resend\dist\index.d.mts:1756:  has_more: boolean;
+  node_modules\resend\dist\index.d.mts:1757:}
+> node_modules\resend\dist\index.d.mts:1758:type ListTemplatesResponse = 
+Response<ListTemplatesResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:1759://#endregion
+> node_modules\resend\dist\index.d.mts:1760://#region 
+src/templates/interfaces/remove-template.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1761:interface 
+RemoveTemplateResponseSuccess {
+  node_modules\resend\dist\index.d.mts:1762:  object: 'template';
+  node_modules\resend\dist\index.d.mts:1763:  id: string;
+  node_modules\resend\dist\index.d.mts:1764:  deleted: boolean;
+  node_modules\resend\dist\index.d.mts:1765:}
+> node_modules\resend\dist\index.d.mts:1768://#region 
+src/templates/interfaces/update-template.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1769:type TemplateVariableUpdateOptions 
+= Pick<TemplateVariable, 'key' | 'type'> & ({
+  node_modules\resend\dist\index.d.mts:1770:  type: 'string';
+  node_modules\resend\dist\index.d.mts:1771:  fallbackValue?: string | null;
+  node_modules\resend\dist\index.d.mts:1772:} | {
+  node_modules\resend\dist\index.d.mts:1773:  type: 'number';
+> node_modules\resend\dist\index.d.mts:1785://#region 
+src/templates/templates.d.ts
+> node_modules\resend\dist\index.d.mts:1786:declare class Templates {
+  node_modules\resend\dist\index.d.mts:1787:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:1788:  private renderAsync?;
+  node_modules\resend\dist\index.d.mts:1789:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:1790:  create(payload: 
+CreateTemplateOptions): ChainableTemplateResult<CreateTemplateResponse>;
+  node_modules\resend\dist\index.d.mts:1791:  private performCreate;
+> node_modules\resend\dist\index.d.mts:1794:  list(options?: 
+PaginationOptions): Promise<ListTemplatesResponse>;
+  node_modules\resend\dist\index.d.mts:1795:  duplicate(identifier: string): 
+ChainableTemplateResult<DuplicateTemplateResponse>;
+  node_modules\resend\dist\index.d.mts:1796:  publish(identifier: string): 
+Promise<PublishTemplateResponse>;
+  node_modules\resend\dist\index.d.mts:1797:  update(identifier: string, 
+payload: UpdateTemplateOptions): Promise<UpdateTemplateResponse>;
+  node_modules\resend\dist\index.d.mts:1798:}
+  node_modules\resend\dist\index.d.mts:1799://#endregion
+> node_modules\resend\dist\index.d.mts:1858://#region 
+src/webhooks/interfaces/webhook-event.interface.d.ts
+  node_modules\resend\dist\index.d.mts:1859:type WebhookEvent = 'email.sent' | 
+'email.scheduled' | 'email.delivered' | 'email.delivery_delayed' | 
+'email.complained' | 'email.bounced' | 'email.opened' | 'email.clicked' | 
+'email.received' | 'email.failed' | 'email.suppressed' | 'contact.created' | 
+'contact.updated' | 'contact.deleted' | 'domain.created' | 'domain.updated' | 
+'domain.deleted';
+  node_modules\resend\dist\index.d.mts:1860:interface BaseEmailEventData {
+  node_modules\resend\dist\index.d.mts:1861:  broadcast_id?: string;
+  node_modules\resend\dist\index.d.mts:1862:  created_at: string;
+  node_modules\resend\dist\index.d.mts:1863:  email_id: string;
+> node_modules\resend\dist\index.d.mts:1884:interface EmailSuppressed {
+  node_modules\resend\dist\index.d.mts:1885:  message: string;
+  node_modules\resend\dist\index.d.mts:1886:  type: string;
+  node_modules\resend\dist\index.d.mts:1887:}
+  node_modules\resend\dist\index.d.mts:1888:interface ReceivedEmailAttachment {
+  node_modules\resend\dist\index.d.mts:1889:  id: string;
+> node_modules\resend\dist\index.d.mts:1934:interface EmailSentEvent {
+  node_modules\resend\dist\index.d.mts:1935:  type: 'email.sent';
+  node_modules\resend\dist\index.d.mts:1936:  created_at: string;
+  node_modules\resend\dist\index.d.mts:1937:  data: BaseEmailEventData;
+  node_modules\resend\dist\index.d.mts:1938:}
+> node_modules\resend\dist\index.d.mts:1939:interface EmailScheduledEvent {
+  node_modules\resend\dist\index.d.mts:1940:  type: 'email.scheduled';
+  node_modules\resend\dist\index.d.mts:1941:  created_at: string;
+  node_modules\resend\dist\index.d.mts:1942:  data: BaseEmailEventData;
+  node_modules\resend\dist\index.d.mts:1943:}
+  node_modules\resend\dist\index.d.mts:1944:interface EmailDeliveredEvent {
+> node_modules\resend\dist\index.d.mts:1990:interface EmailSuppressedEvent {
+  node_modules\resend\dist\index.d.mts:1991:  type: 'email.suppressed';
+  node_modules\resend\dist\index.d.mts:1992:  created_at: string;
+  node_modules\resend\dist\index.d.mts:1993:  data: BaseEmailEventData & {
+> node_modules\resend\dist\index.d.mts:1994:    suppressed: EmailSuppressed;
+  node_modules\resend\dist\index.d.mts:1995:  };
+  node_modules\resend\dist\index.d.mts:1996:}
+  node_modules\resend\dist\index.d.mts:1997:interface ContactCreatedEvent {
+  node_modules\resend\dist\index.d.mts:1998:  type: 'contact.created';
+  node_modules\resend\dist\index.d.mts:1999:  created_at: string;
+> node_modules\resend\dist\index.d.mts:2027:type WebhookEventPayload = 
+EmailSentEvent | EmailScheduledEvent | EmailDeliveredEvent | 
+EmailDeliveryDelayedEvent | EmailComplainedEvent | EmailBouncedEvent | 
+EmailOpenedEvent | EmailClickedEvent | EmailReceivedEvent | EmailFailedEvent | 
+EmailSuppressedEvent | ContactCreatedEvent | ContactUpdatedEvent | 
+ContactDeletedEvent | DomainCreatedEvent | DomainUpdatedEvent | 
+DomainDeletedEvent;
+  node_modules\resend\dist\index.d.mts:2028://#endregion
+> node_modules\resend\dist\index.d.mts:2029://#region 
+src/webhooks/interfaces/create-webhook-options.interface.d.ts
+  node_modules\resend\dist\index.d.mts:2030:interface CreateWebhookOptions {
+  node_modules\resend\dist\index.d.mts:2031:  endpoint: string;
+  node_modules\resend\dist\index.d.mts:2032:  events: WebhookEvent[];
+  node_modules\resend\dist\index.d.mts:2033:}
+  node_modules\resend\dist\index.d.mts:2034:interface 
+CreateWebhookRequestOptions extends PostOptions {}
+> node_modules\resend\dist\index.d.mts:2042://#region 
+src/webhooks/interfaces/get-webhook.interface.d.ts
+  node_modules\resend\dist\index.d.mts:2043:interface 
+GetWebhookResponseSuccess {
+  node_modules\resend\dist\index.d.mts:2044:  object: 'webhook';
+  node_modules\resend\dist\index.d.mts:2045:  id: string;
+  node_modules\resend\dist\index.d.mts:2046:  created_at: string;
+  node_modules\resend\dist\index.d.mts:2047:  status: 'enabled' | 'disabled';
+> node_modules\resend\dist\index.d.mts:2054://#region 
+src/webhooks/interfaces/list-webhooks.interface.d.ts
+> node_modules\resend\dist\index.d.mts:2055:type ListWebhooksOptions = 
+PaginationOptions;
+  node_modules\resend\dist\index.d.mts:2056:interface Webhook {
+  node_modules\resend\dist\index.d.mts:2057:  id: string;
+  node_modules\resend\dist\index.d.mts:2058:  endpoint: string;
+  node_modules\resend\dist\index.d.mts:2059:  created_at: string;
+  node_modules\resend\dist\index.d.mts:2060:  status: 'enabled' | 'disabled';
+> node_modules\resend\dist\index.d.mts:2063:type ListWebhooksResponseSuccess = 
+{
+  node_modules\resend\dist\index.d.mts:2064:  object: 'list';
+  node_modules\resend\dist\index.d.mts:2065:  has_more: boolean;
+  node_modules\resend\dist\index.d.mts:2066:  data: Webhook[];
+  node_modules\resend\dist\index.d.mts:2067:};
+> node_modules\resend\dist\index.d.mts:2068:type ListWebhooksResponse = 
+Response<ListWebhooksResponseSuccess>;
+  node_modules\resend\dist\index.d.mts:2069://#endregion
+> node_modules\resend\dist\index.d.mts:2070://#region 
+src/webhooks/interfaces/remove-webhook.interface.d.ts
+  node_modules\resend\dist\index.d.mts:2071:type RemoveWebhookResponseSuccess 
+= Pick<Webhook, 'id'> & {
+  node_modules\resend\dist\index.d.mts:2072:  object: 'webhook';
+  node_modules\resend\dist\index.d.mts:2073:  deleted: boolean;
+  node_modules\resend\dist\index.d.mts:2074:};
+  node_modules\resend\dist\index.d.mts:2075:type RemoveWebhookResponse = 
+Response<RemoveWebhookResponseSuccess>;
+> node_modules\resend\dist\index.d.mts:2077://#region 
+src/webhooks/interfaces/update-webhook.interface.d.ts
+  node_modules\resend\dist\index.d.mts:2078:interface UpdateWebhookOptions {
+  node_modules\resend\dist\index.d.mts:2079:  endpoint?: string;
+  node_modules\resend\dist\index.d.mts:2080:  events?: WebhookEvent[];
+  node_modules\resend\dist\index.d.mts:2081:  status?: 'enabled' | 'disabled';
+  node_modules\resend\dist\index.d.mts:2082:}
+> node_modules\resend\dist\index.d.mts:2089://#region 
+src/webhooks/webhooks.d.ts
+  node_modules\resend\dist\index.d.mts:2090:interface Headers {
+  node_modules\resend\dist\index.d.mts:2091:  id: string;
+  node_modules\resend\dist\index.d.mts:2092:  timestamp: string;
+  node_modules\resend\dist\index.d.mts:2093:  signature: string;
+  node_modules\resend\dist\index.d.mts:2094:}
+> node_modules\resend\dist\index.d.mts:2098:  webhookSecret: string;
+  node_modules\resend\dist\index.d.mts:2099:}
+> node_modules\resend\dist\index.d.mts:2100:declare class Webhooks {
+  node_modules\resend\dist\index.d.mts:2101:  private readonly resend;
+  node_modules\resend\dist\index.d.mts:2102:  constructor(resend: Resend);
+  node_modules\resend\dist\index.d.mts:2103:  create(payload: 
+CreateWebhookOptions, options?: CreateWebhookRequestOptions): 
+Promise<CreateWebhookResponse>;
+  node_modules\resend\dist\index.d.mts:2104:  get(id: string): 
+Promise<GetWebhookResponse>;
+> node_modules\resend\dist\index.d.mts:2105:  list(options?: 
+ListWebhooksOptions): Promise<ListWebhooksResponse>;
+  node_modules\resend\dist\index.d.mts:2106:  update(id: string, payload: 
+UpdateWebhookOptions): Promise<UpdateWebhookResponse>;
+  node_modules\resend\dist\index.d.mts:2107:  remove(id: string): 
+Promise<RemoveWebhookResponse>;
+  node_modules\resend\dist\index.d.mts:2108:  verify(payload: 
+VerifyWebhookOptions): WebhookEventPayload;
+  node_modules\resend\dist\index.d.mts:2109:}
+  node_modules\resend\dist\index.d.mts:2110://#endregion
+> node_modules\resend\dist\index.d.mts:2116:  readonly apiKeys: ApiKeys;
+  node_modules\resend\dist\index.d.mts:2117:  /**
+  node_modules\resend\dist\index.d.mts:2118:   * @deprecated Use segments 
+instead
+  node_modules\resend\dist\index.d.mts:2119:   */
+  node_modules\resend\dist\index.d.mts:2120:  readonly audiences: Segments;
+  node_modules\resend\dist\index.d.mts:2121:  readonly automations: 
+Automations;
+> node_modules\resend\dist\index.d.mts:2126:  readonly domains: Domains;
+> node_modules\resend\dist\index.d.mts:2127:  readonly emails: Emails;
+  node_modules\resend\dist\index.d.mts:2128:  readonly events: Events;
+  node_modules\resend\dist\index.d.mts:2129:  readonly logs: Logs;
+> node_modules\resend\dist\index.d.mts:2130:  readonly templates: Templates;
+  node_modules\resend\dist\index.d.mts:2131:  readonly topics: Topics;
+> node_modules\resend\dist\index.d.mts:2132:  readonly webhooks: Webhooks;
+  node_modules\resend\dist\index.d.mts:2133:  constructor(key?: string | 
+undefined);
+  node_modules\resend\dist\index.d.mts:2134:  fetchRequest<T>(path: string, 
+options?: {}): Promise<Response<T>>;
+  node_modules\resend\dist\index.d.mts:2135:  post<T>(path: string, entity?: 
+unknown, options?: PostOptions & IdempotentRequest): Promise<Response<T>>;
+  node_modules\resend\dist\index.d.mts:2136:  get<T>(path: string, options?: 
+GetOptions): Promise<Response<T>>;
+  node_modules\resend\dist\index.d.mts:2137:  put<T>(path: string, entity: 
+unknown, options?: PutOptions): Promise<Response<T>>;
+> node_modules\resend\dist\index.d.mts:2142:export { AddContactSegmentOptions, 
+AddContactSegmentResponse, AddContactSegmentResponseSuccess, 
+AddToSegmentStepConfig, ApiContactProperty, ApiKey, Attachment, 
+AttachmentData, Automation, AutomationConnection, AutomationConnectionType, 
+AutomationResponseConnection, AutomationResponseStep, AutomationRun, 
+AutomationRunItem, AutomationRunStatus, AutomationRunStep, 
+AutomationRunStepStatus, AutomationStatus, AutomationStep, AutomationStepType, 
+Broadcast, CancelEmailResponse, CancelEmailResponseSuccess, ConditionRule, 
+ConditionStepConfig, Contact, ContactCreatedEvent, ContactDeleteStepConfig, 
+ContactDeletedEvent, ContactProperty, ContactSegmentsBaseOptions, 
+ContactTopic, ContactUpdateStepConfig, ContactUpdatedEvent, 
+CreateApiKeyOptions, CreateApiKeyRequestOptions, CreateApiKeyResponse, 
+CreateApiKeyResponseSuccess, CreateAutomationOptions, 
+CreateAutomationResponse, CreateAutomationResponseSuccess, 
+CreateBatchEmailOptions, CreateBatchOptions, CreateBatchRequestOptions, 
+CreateBatchResponse, CreateBatchSuccessResponse, CreateBroadcastOptions, 
+CreateBroadcastRequestOptions, CreateBroadcastResponse, 
+CreateBroadcastResponseSuccess, CreateContactOptions, 
+CreateContactPropertyApiOptions, CreateContactPropertyOptions, 
+CreateContactPropertyResponse, CreateContactPropertyResponseSuccess, 
+CreateContactRequestOptions, CreateContactResponse, 
+CreateContactResponseSuccess, CreateDomainOptions, CreateDomainRequestOptions, 
+CreateDomainResponse, CreateDomainResponseSuccess, CreateEmailOptions, 
+CreateEmailRequestOptions, CreateEmailResponse, CreateEmailResponseSuccess, 
+CreateEventOptions, CreateEventResponse, CreateEventResponseSuccess, 
+CreateSegmentOptions, CreateSegmentRequestOptions, CreateSegmentResponse, 
+CreateSegmentResponseSuccess, CreateTemplateOptions, 
+CreateTemplateRequestOptions, CreateTemplateResponse, 
+CreateTemplateResponseSuccess, CreateTopicOptions, CreateTopicResponse, 
+CreateTopicResponseSuccess, CreateWebhookOptions, CreateWebhookRequestOptions, 
+CreateWebhookResponse, CreateWebhookResponseSuccess, DelayStepConfig, Domain, 
+DomainApiOptions, DomainCapabilities, DomainCapabilityStatus, 
+DomainCreatedEvent, DomainDeletedEvent, DomainDkimRecord, DomainNameservers, 
+DomainRecordStatus, DomainRecords, DomainRegion, DomainSpfRecord, 
+DomainStatus, DomainUpdatedEvent, DuplicateTemplateResponse, 
+DuplicateTemplateResponseSuccess, EmailApiAttachment, EmailApiOptions, 
+EmailBouncedEvent, EmailClickedEvent, EmailComplainedEvent, 
+EmailDeliveredEvent, EmailDeliveryDelayedEvent, EmailFailedEvent, 
+EmailOpenedEvent, EmailReceivedEvent, EmailScheduledEvent, EmailSentEvent, 
+EmailSuppressedEvent, type ErrorResponse, Event, EventSchemaMap, 
+EventSchemaType, ForwardReceivingEmailOptions, ForwardReceivingEmailResponse, 
+ForwardReceivingEmailResponseSuccess, GetAttachmentOptions, 
+GetAttachmentResponse, GetAttachmentResponseSuccess, GetAutomationResponse, 
+GetAutomationResponseSuccess, GetAutomationRunOptions, 
+GetAutomationRunResponse, GetAutomationRunResponseSuccess, 
+GetBroadcastResponse, GetBroadcastResponseSuccess, GetContactOptions, 
+GetContactPropertyResponse, GetContactPropertyResponseSuccess, 
+GetContactResponse, GetContactResponseSuccess, GetDomainResponse, 
+GetDomainResponseSuccess, GetEmailResponse, GetEmailResponseSuccess, 
+GetEventResponse, GetEventResponseSuccess, GetLogResponse, 
+GetLogResponseSuccess, GetOptions, GetReceivingEmailResponse, 
+GetReceivingEmailResponseSuccess, GetSegmentResponse, 
+GetSegmentResponseSuccess, GetTemplateResponse, GetTemplateResponseSuccess, 
+GetTopicOptions, GetTopicResponse, GetTopicResponseSuccess, 
+GetWebhookResponse, GetWebhookResponseSuccess, IdempotentRequest, 
+InboundAttachment, LegacyCreateContactOptions, ListApiKeysOptions, 
+ListApiKeysResponse, ListApiKeysResponseSuccess, ListAttachmentsOptions, 
+ListAttachmentsResponse, ListAttachmentsResponseSuccess, 
+ListAutomationRunsOptions, ListAutomationRunsResponse, 
+ListAutomationRunsResponseSuccess, ListAutomationsOptions, 
+ListAutomationsResponse, ListAutomationsResponseSuccess, 
+ListBroadcastsOptions, ListBroadcastsResponse, ListBroadcastsResponseSuccess, 
+ListContactPropertiesOptions, ListContactPropertiesResponse, 
+ListContactPropertiesResponseSuccess, ListContactSegmentsOptions, 
+ListContactSegmentsResponse, ListContactSegmentsResponseSuccess, 
+ListContactTopicsOptions, ListContactTopicsRequestOptions, 
+ListContactTopicsResponse, ListContactTopicsResponseSuccess, 
+ListContactsOptions, ListContactsResponse, ListContactsResponseSuccess, 
+ListDomainsOptions, ListDomainsResponse, ListDomainsResponseSuccess, 
+ListEmail, ListEmailsOptions, ListEmailsResponse, ListEmailsResponseSuccess, 
+ListEventsOptions, ListEventsResponse, ListEventsResponseSuccess, 
+ListLogsOptions, ListLogsResponse, ListLogsResponseSuccess, 
+ListReceivingEmail, ListReceivingEmailsOptions, ListReceivingEmailsResponse, 
+ListReceivingEmailsResponseSuccess, ListSegmentsOptions, ListSegmentsResponse, 
+ListSegmentsResponseSuccess, ListTemplatesOptions, ListTemplatesResponse, 
+ListTemplatesResponseSuccess, ListTopicsResponse, ListTopicsResponseSuccess, 
+ListWebhooksOptions, ListWebhooksResponse, ListWebhooksResponseSuccess, Log, 
+PaginatedData, PaginationOptions, PatchOptions, PostOptions, 
+PublishTemplateResponse, PublishTemplateResponseSuccess, PutOptions, 
+ReceivingRecord, RemoveApiKeyResponse, RemoveApiKeyResponseSuccess, 
+RemoveAutomationResponse, RemoveAutomationResponseSuccess, 
+RemoveBroadcastResponse, RemoveBroadcastResponseSuccess, RemoveContactOptions, 
+RemoveContactPropertyResponse, RemoveContactPropertyResponseSuccess, 
+RemoveContactSegmentOptions, RemoveContactSegmentResponse, 
+RemoveContactSegmentResponseSuccess, RemoveContactsResponse, 
+RemoveContactsResponseSuccess, RemoveDomainsResponse, 
+RemoveDomainsResponseSuccess, RemoveEventResponse, RemoveEventResponseSuccess, 
+RemoveSegmentResponse, RemoveSegmentResponseSuccess, RemoveTemplateResponse, 
+RemoveTemplateResponseSuccess, RemoveTopicResponse, 
+RemoveTopicResponseSuccess, RemoveWebhookResponse, 
+RemoveWebhookResponseSuccess, RequireAtLeastOne, Resend, type Response, 
+Segment, SelectingField, SendBroadcastOptions, SendBroadcastRequestOptions, 
+SendBroadcastResponse, SendBroadcastResponseSuccess, SendEmailStepConfig, 
+SendEventOptions, SendEventResponse, SendEventResponseSuccess, 
+StopAutomationResponse, StopAutomationResponseSuccess, Tag, Template, 
+TemplateVariable, TemplateVariableValue, Topic, TrackingCaaRecord, 
+TrackingRecord, TriggerStepConfig, UpdateAutomationOptions, 
+UpdateAutomationResponse, UpdateAutomationResponseSuccess, 
+UpdateBroadcastOptions, UpdateBroadcastResponse, 
+UpdateBroadcastResponseSuccess, UpdateContactOptions, 
+UpdateContactPropertyApiOptions, UpdateContactPropertyOptions, 
+UpdateContactPropertyResponse, UpdateContactPropertyResponseSuccess, 
+UpdateContactResponse, UpdateContactResponseSuccess, 
+UpdateContactTopicsOptions, UpdateContactTopicsRequestOptions, 
+UpdateContactTopicsResponse, UpdateContactTopicsResponseSuccess, 
+UpdateDomainsOptions, UpdateDomainsResponse, UpdateDomainsResponseSuccess, 
+UpdateEmailOptions, UpdateEmailResponse, UpdateEmailResponseSuccess, 
+UpdateEventOptions, UpdateEventResponse, UpdateEventResponseSuccess, 
+UpdateTemplateOptions, UpdateTemplateResponse, UpdateTemplateResponseSuccess, 
+UpdateTopicOptions, UpdateTopicResponse, UpdateTopicResponseSuccess, 
+UpdateWebhookOptions, UpdateWebhookResponse, UpdateWebhookResponseSuccess, 
+VerifyDomainsResponse, VerifyDomainsResponseSuccess, WaitForEventStepConfig, 
+Webhook, WebhookEvent, WebhookEventPayload };
+
+
+

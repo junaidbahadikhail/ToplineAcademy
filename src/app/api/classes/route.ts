@@ -45,7 +45,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = getSession();
-  if (!session || (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN')) {
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'INSTRUCTOR' && session.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Only instructors can create classes.' }, { status: 403 });
   }
 

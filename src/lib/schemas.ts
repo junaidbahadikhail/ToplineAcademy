@@ -8,11 +8,13 @@ const pakistaniPhone = z
     { message: 'Phone must be a valid Pakistani number (e.g. 0312 1234567 or +923121234567).' }
   );
 
+const stripHtml = (v: string) => v.replace(/<[^>]*>/g, '').trim();
+
 export const RegisterSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters.').max(100),
+  name: z.string().min(2, 'Name must be at least 2 characters.').max(100).transform(stripHtml),
   email: z.string().email('Invalid email address.'),
   phone: pakistaniPhone,
-  city: z.string().min(2, 'City is required.').max(100),
+  city: z.string().min(2, 'City is required.').max(100).transform(stripHtml),
   password: z.string().min(8, 'Password must be at least 8 characters.'),
   role: z.enum(['STUDENT', 'INSTRUCTOR']).default('STUDENT'),
 });
@@ -23,14 +25,14 @@ export const LoginSchema = z.object({
 });
 
 export const UpdateProfileSchema = z.object({
-  name: z.string().min(2).max(100).optional(),
+  name: z.string().min(2).max(100).transform(stripHtml).optional(),
   phone: pakistaniPhone.optional(),
-  city: z.string().min(2).max(100).optional(),
+  city: z.string().min(2).max(100).transform(stripHtml).optional(),
 });
 
 export const CreateClassSchema = z.object({
-  title: z.string().min(3, 'Title must be at least 3 characters.').max(200),
-  subject: z.string().min(2).max(100),
+  title: z.string().min(3, 'Title must be at least 3 characters.').max(200).transform(stripHtml),
+  subject: z.string().min(2).max(100).transform(stripHtml),
   description: z.string().max(2000).optional(),
   scheduleTime: z.string().datetime({ message: 'scheduleTime must be a valid ISO datetime.' }),
   maxStudents: z.number().int().min(1).max(500),

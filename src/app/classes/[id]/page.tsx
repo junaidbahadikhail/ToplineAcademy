@@ -53,6 +53,7 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
   const [joining, setJoining] = useState(false);
   const [joinToken, setJoinToken] = useState<string | null>(null);
   const [joinRoomName, setJoinRoomName] = useState<string | null>(null);
+  const [joinUserName, setJoinUserName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [meetingNote, setMeetingNote] = useState<MeetingNote | null>(null);
@@ -95,8 +96,9 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
       setError(data.error || 'Unable to join session.');
       return;
     }
-    setJoinToken(data.token);
+    setJoinToken(data.token ?? null);
     setJoinRoomName(data.roomName);
+    setJoinUserName(data.userName ?? null);
     setJoining(true);
   };
 
@@ -137,7 +139,7 @@ export default function ClassDetailPage({ params }: { params: { id: string } }) 
                 Leave
               </button>
             </div>
-            <DailyRoom roomName={joinRoomName} token={joinToken ?? undefined} />
+            <DailyRoom roomName={joinRoomName} token={joinToken ?? undefined} userName={joinUserName ?? undefined} />
           </div>
         )}
 

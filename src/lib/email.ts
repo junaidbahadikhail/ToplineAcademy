@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = 'Topline Academy <noreply@toplineacademy.vercel.app>';
+const FROM = 'Topline Academy <onboarding@resend.dev>';
 
 async function send(to: string, subject: string, html: string) {
   if (!process.env.RESEND_API_KEY) return;
@@ -33,10 +33,20 @@ function btn(href: string, label: string) {
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://topline-academy.vercel.app';
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 export async function sendWelcomeEmail(to: string, name: string, role: string) {
+  const safeName = escapeHtml(name);
   const html = base(`
-    <h1 style="margin:0 0 8px;font-size:24px;color:#0f172a;">Welcome, ${name}!</h1>
-    <p style="margin:0 0 16px;color:#475569;">Your ${role.toLowerCase()} account on Topline Academy is ready.</p>
+    <h1 style="margin:0 0 8px;font-size:24px;color:#0f172a;">Welcome, ${safeName}!</h1>
+    <p style="margin:0 0 16px;color:#475569;">Your ${escapeHtml(role.toLowerCase())} account on Topline Academy is ready.</p>
     ${role === 'INSTRUCTOR'
       ? `<p style="color:#64748b;font-size:14px;">Your instructor account is pending admin verification. You'll receive another email once approved.</p>`
       : `<p style="color:#64748b;font-size:14px;">Start browsing available classes and enroll in sessions that interest you.</p>`
@@ -54,10 +64,10 @@ export async function sendEnrollmentConfirmationEmail(
   });
   const html = base(`
     <h1 style="margin:0 0 8px;font-size:24px;color:#0f172a;">Enrollment Submitted</h1>
-    <p style="margin:0 0 20px;color:#475569;">Hi ${name}, your enrollment request has been submitted for review.</p>
+    <p style="margin:0 0 20px;color:#475569;">Hi ${escapeHtml(name)}, your enrollment request has been submitted for review.</p>
     <table style="width:100%;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;" cellpadding="16">
-      <tr><td style="color:#64748b;font-size:13px;font-weight:600;border-bottom:1px solid #e2e8f0;">Class</td><td style="font-weight:600;color:#0f172a;border-bottom:1px solid #e2e8f0;">${className}</td></tr>
-      <tr><td style="color:#64748b;font-size:13px;font-weight:600;border-bottom:1px solid #e2e8f0;">Subject</td><td style="color:#334155;border-bottom:1px solid #e2e8f0;">${subject}</td></tr>
+      <tr><td style="color:#64748b;font-size:13px;font-weight:600;border-bottom:1px solid #e2e8f0;">Class</td><td style="font-weight:600;color:#0f172a;border-bottom:1px solid #e2e8f0;">${escapeHtml(className)}</td></tr>
+      <tr><td style="color:#64748b;font-size:13px;font-weight:600;border-bottom:1px solid #e2e8f0;">Subject</td><td style="color:#334155;border-bottom:1px solid #e2e8f0;">${escapeHtml(subject)}</td></tr>
       <tr><td style="color:#64748b;font-size:13px;font-weight:600;">Schedule</td><td style="color:#334155;">${date} PKT</td></tr>
     </table>
     <p style="margin-top:16px;color:#64748b;font-size:14px;">Admin will review and approve your enrollment. Check your dashboard for updates.</p>
@@ -74,9 +84,9 @@ export async function sendEnrollmentApprovedEmail(
   });
   const html = base(`
     <h1 style="margin:0 0 8px;font-size:24px;color:#15803d;">Enrollment Approved!</h1>
-    <p style="margin:0 0 20px;color:#475569;">Great news, ${name}! Your enrollment in <strong>${className}</strong> has been approved.</p>
+    <p style="margin:0 0 20px;color:#475569;">Great news, ${escapeHtml(name)}! Your enrollment in <strong>${escapeHtml(className)}</strong> has been approved.</p>
     <p style="color:#64748b;font-size:14px;"><strong>Session time:</strong> ${date} PKT</p>
-    ${meetLink ? `<p style="color:#64748b;font-size:14px;"><strong>Room:</strong> ${meetLink}</p>` : ''}
+    ${meetLink ? `<p style="color:#64748b;font-size:14px;"><strong>Room:</strong> ${escapeHtml(meetLink)}</p>` : ''}
     <p style="color:#64748b;font-size:14px;">Join the session from your student dashboard when it goes live.</p>
     ${btn(`${BASE_URL}/dashboard/student`, 'Open Dashboard')}
   `);
@@ -86,7 +96,7 @@ export async function sendEnrollmentApprovedEmail(
 export async function sendEnrollmentRejectedEmail(to: string, name: string, className: string) {
   const html = base(`
     <h1 style="margin:0 0 8px;font-size:24px;color:#b91c1c;">Enrollment Not Approved</h1>
-    <p style="margin:0 0 16px;color:#475569;">Hi ${name}, unfortunately your enrollment request for <strong>${className}</strong> was not approved.</p>
+    <p style="margin:0 0 16px;color:#475569;">Hi ${escapeHtml(name)}, unfortunately your enrollment request for <strong>${escapeHtml(className)}</strong> was not approved.</p>
     <p style="color:#64748b;font-size:14px;">Please contact us if you have questions or would like to apply for another class.</p>
     ${btn(`${BASE_URL}/classes`, 'Browse Other Classes')}
   `);
@@ -96,7 +106,7 @@ export async function sendEnrollmentRejectedEmail(to: string, name: string, clas
 export async function sendInstructorApprovedEmail(to: string, name: string) {
   const html = base(`
     <h1 style="margin:0 0 8px;font-size:24px;color:#15803d;">Instructor Account Approved!</h1>
-    <p style="margin:0 0 16px;color:#475569;">Hi ${name}, your instructor account has been verified by admin. You can now create and manage classes.</p>
+    <p style="margin:0 0 16px;color:#475569;">Hi ${escapeHtml(name)}, your instructor account has been verified by admin. You can now create and manage classes.</p>
     ${btn(`${BASE_URL}/dashboard/instructor`, 'Go to Instructor Dashboard')}
   `);
   await send(to, 'Your instructor account is approved', html);
@@ -105,7 +115,7 @@ export async function sendInstructorApprovedEmail(to: string, name: string) {
 export async function sendSessionStartingEmail(to: string, name: string, className: string, _meetLink: string) {
   const html = base(`
     <h1 style="margin:0 0 8px;font-size:24px;color:#0f172a;">Session Starting Now</h1>
-    <p style="margin:0 0 16px;color:#475569;">Hi ${name}, your class <strong>${className}</strong> is live right now. Join before you miss it!</p>
+    <p style="margin:0 0 16px;color:#475569;">Hi ${escapeHtml(name)}, your class <strong>${escapeHtml(className)}</strong> is live right now. Join before you miss it!</p>
     ${btn(`${BASE_URL}/dashboard/student`, 'Join Session')}
   `);
   await send(to, `LIVE NOW: ${className}`, html);

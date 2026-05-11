@@ -82,7 +82,7 @@ function ScheduleCalendar({ enrollments }: { enrollments: Enrollment[] }) {
 }
 
 export default function StudentDashboardPage() {
-  const [_user, setUser] = useState<{ userId: string; email: string } | null>(null);
+  const [user, setUser] = useState<{ userId: string; email: string; name?: string } | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +107,7 @@ export default function StudentDashboardPage() {
           return;
         }
 
-        setUser(me.user);
+        setUser({ userId: me.user.id, email: me.user.email, name: me.user.name });
         setAuthorized(true);
         setEnrollments(Array.isArray(data) ? data : []);
         setAttendance(Array.isArray(attData) ? attData : []);
@@ -144,8 +144,12 @@ export default function StudentDashboardPage() {
 
   const joiningEnrollment = joiningClassId ? enrollments.find((e) => e.class.id === joiningClassId) : null;
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = user?.name?.split(' ')[0] ?? 'Student';
+
   return (
-    <main>
+    <main className="min-h-screen bg-slate-50">
       <SiteHeader />
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 
@@ -160,26 +164,42 @@ export default function StudentDashboardPage() {
                 Leave session
               </button>
             </div>
-            <DailyRoom roomName={joiningEnrollment.class.meetLink} />
+            <DailyRoom roomName={joiningEnrollment.class.meetLink} userName={user?.name} />
           </div>
         )}
 
-        {/* Header */}
-        <div className="mb-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-teal-950/70">Student Portal</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">My Dashboard</h1>
+        {/* Coursera-style greeting header */}
+        <div className="mb-8 rounded-2xl bg-teal-950 p-8 text-white">
+          <p className="text-teal-300 text-sm font-medium">{greeting},</p>
+          <h1 className="mt-1 text-3xl font-bold">{firstName}!</h1>
+          <p className="mt-2 text-teal-200 text-sm">
+            {approved} class{approved !== 1 ? 'es' : ''} approved · {pending} pending approval
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link href="/classes" className="inline-flex rounded-full bg-amber-400 px-5 py-2 text-sm font-bold text-teal-950 hover:bg-amber-300 transition">
+              Browse Classes
+            </Link>
+            {pending > 0 && (
+              <span className="inline-flex items-center rounded-full bg-amber-100/20 px-4 py-2 text-xs font-semibold text-amber-300">
+                ⏳ {pending} enrollment{pending !== 1 ? 's' : ''} awaiting approval
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Stats */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           {[
-            { label: 'Enrolled', value: total },
-            { label: 'Approved', value: approved },
-            { label: 'Pending', value: pending },
+            { label: 'Total Enrolled', value: total, icon: '📚' },
+            { label: 'Approved', value: approved, icon: '✅' },
+            { label: 'Pending', value: pending, icon: '⏳' },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <p className="text-sm font-medium text-slate-500">{s.label}</p>
-              <p className="mt-2 text-4xl font-bold text-teal-950">{s.value}</p>
+            <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex items-center gap-4">
+              <span className="text-2xl">{s.icon}</span>
+              <div>
+                <p className="text-xs font-medium text-slate-500">{s.label}</p>
+                <p className="text-3xl font-bold text-teal-950">{s.value}</p>
+              </div>
             </div>
           ))}
         </div>

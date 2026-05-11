@@ -2,17 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 
-const DAILY_API_KEY = process.env.DAILY_API_KEY;
 const PRE_JOIN_MS = 15 * 60 * 1000;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
 
 export async function POST(_request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-  if (!DAILY_API_KEY) {
-    return NextResponse.json({ error: 'Video service not configured.' }, { status: 503 });
-  }
 
   const { data: cls } = await supabaseAdmin
     .from('Class')
@@ -68,31 +63,6 @@ export async function POST(_request: Request, { params }: { params: { id: string
     .eq('id', session.userId)
     .single();
 
-  const roomName = cls.meetLink ?? process.env.NEXT_PUBLIC_DAILY_ROOM ?? 'toplineacademy-session';
-  const expiry = Math.floor(latest / 1000);
-
-  const tokenRes = await fetch('https://api.daily.co/v1/meeting-tokens', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${DAILY_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      properties: {
-        room_name: roomName,
-        user_name: user?.name ?? session.email,
-        user_id: session.userId,
-        is_owner: isOwner,
-        exp: expiry,
-      },
-    }),
-  });
-
-  if (!tokenRes.ok) {
-    console.error('[daily] token creation failed:', await tokenRes.text());
-    return NextResponse.json({ error: 'Failed to create session token.' }, { status: 502 });
-  }
-
-  const { token } = await tokenRes.json() as { token: string };
-  return NextResponse.json({ token, roomName });
+  const roomName = cls.meetLink ?? 'toplineacademy-session';
+  return NextResponse.json({ roomName, userName: user?.name ?? session.email });
 }

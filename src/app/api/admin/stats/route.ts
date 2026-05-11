@@ -4,9 +4,8 @@ import { getSession } from '@/lib/get-session';
 
 export async function GET() {
   const session = getSession();
-  if (!session || session.role !== 'ADMIN') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  }
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const [
     { count: totalStudents },
