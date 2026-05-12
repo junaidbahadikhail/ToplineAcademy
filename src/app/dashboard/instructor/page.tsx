@@ -296,8 +296,7 @@ export default function InstructorDashboardPage() {
     </main>
   );
 
-  const liveClass = liveClassId ? classes.find((c) => c.id === liveClassId) : null;
-  const totalStudents = classes.reduce((s, c) => s + c.enrollments.length, 0);
+  const totalStudents = classes.reduce((s, c) => s + (c.enrollments?.length ?? 0), 0);
   const liveCount = classes.filter((c) => c.status === 'LIVE_NOW').length;
 
   const hour = new Date().getHours();
@@ -493,7 +492,7 @@ export default function InstructorDashboardPage() {
                         <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusColor[cls.status] ?? 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                           {isLive ? '● LIVE NOW' : cls.status}
                         </span>
-                        <span className="text-xs text-slate-400">{cls._count.enrollments} enrolled · {cls.enrollments.length} approved</span>
+                        <span className="text-xs text-slate-400">{cls._count.enrollments} enrolled · {cls.enrollments?.filter(e => (e as { id: string; status: string }).status === 'APPROVED').length ?? 0} approved</span>
                       </div>
                       <h3 className="font-semibold text-slate-900 truncate">{cls.title}</h3>
                       <p className="text-sm text-slate-500">{cls.subject}</p>

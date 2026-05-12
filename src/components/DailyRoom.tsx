@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DailyIframe from '@daily-co/daily-js';
 
 interface VideoRoomProps {
@@ -33,31 +33,59 @@ function DailyCoRoom({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<ReturnType<typeof DailyIframe.createFrame> | null>(null);
+  const [roomError, setRoomError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
+    setRoomError(null);
 
-    const frame = DailyIframe.createFrame(containerRef.current, {
-      iframeStyle: { width: '100%', height: '100%', border: 'none' },
-      showLeaveButton: true,
-      showFullscreenButton: true,
-    });
-    frameRef.current = frame;
+    let frame: ReturnType<typeof DailyIframe.createFrame> | null = null;
+    try {
+      frame = DailyIframe.createFrame(containerRef.current, {
+        iframeStyle: { width: '100%', height: '100%', border: 'none' },
+        showLeaveButton: true,
+        showFullscreenButton: true,
+      });
+      frameRef.current = frame;
 
-    frame.join({
-      url: roomUrl,
-      token: token || undefined,
-      userName: userName || undefined,
-      // Students start muted; instructors are live immediately
-      startVideoOff: !isInstructor,
-      startAudioOff: !isInstructor,
-    });
+      frame
+        .join({
+          url: roomUrl,
+          token: token || undefined,
+          userName: userName || undefined,
+          startVideoOff: !isInstructor,
+          startAudioOff: !isInstructor,
+        })
+        .catch((err: unknown) => {
+          setRoomError((err as Error)?.message ?? 'Failed to join the room.');
+        });
+
+      frame.on('error', (event: { errorMsg?: string }) => {
+        setRoomError(event?.errorMsg ?? 'Daily.co room error.');
+      });
+    } catch (err: unknown) {
+      setRoomError((err as Error)?.message ?? 'Failed to initialise video room.');
+    }
 
     return () => {
-      frame.destroy();
-      frameRef.current = null;
+      if (frameRef.current) {
+        try { frameRef.current.destroy(); } catch { /* ignore */ }
+        frameRef.current = null;
+      }
     };
   }, [roomUrl, token, userName, isInstructor]);
+
+  if (roomError) {
+    return (
+      <div className={`${containerClass} flex items-center justify-center`}>
+        <div className="text-center px-6">
+          <p className="text-red-400 font-semibold mb-1">Could not connect to video room</p>
+          <p className="text-slate-400 text-sm">{roomError}</p>
+          <p className="text-slate-500 text-xs mt-2">Check that NEXT_PUBLIC_DAILY_DOMAIN is set correctly in Vercel.</p>
+        </div>
+      </div>
+    );
+  }
 
   return <div ref={containerRef} className={containerClass} />;
 }

@@ -1,6 +1,16 @@
 const DAILY_API_KEY = process.env.DAILY_API_KEY;
-// NEXT_PUBLIC_DAILY_DOMAIN holds the full domain, e.g. 'toplineacademy.daily.co'
-const DAILY_DOMAIN = process.env.NEXT_PUBLIC_DAILY_DOMAIN;
+
+// Accept bare subdomain ("toplineacademy"), full domain ("toplineacademy.daily.co"),
+// or an accidental full URL ("https://toplineacademy.daily.co") — all normalise to the
+// host-only form so URL construction never produces "https://https://...".
+function normaliseDailyDomain(raw: string | undefined): string {
+  if (!raw) return '';
+  const stripped = raw.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  // If it's just a bare subdomain with no dot, append .daily.co
+  return stripped.includes('.') ? stripped : `${stripped}.daily.co`;
+}
+
+const DAILY_DOMAIN = normaliseDailyDomain(process.env.NEXT_PUBLIC_DAILY_DOMAIN);
 
 export function hasDailyDomain(): boolean {
   return !!DAILY_DOMAIN;
@@ -8,7 +18,6 @@ export function hasDailyDomain(): boolean {
 
 export function getDailyRoomUrl(roomName: string): string | null {
   if (!DAILY_DOMAIN) return null;
-  // DAILY_DOMAIN already includes the full host (toplineacademy.daily.co)
   return `https://${DAILY_DOMAIN}/${roomName}`;
 }
 
