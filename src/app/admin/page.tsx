@@ -81,7 +81,7 @@ export default function AdminPage() {
   const [createLoading, setCreateLoading] = useState(false);
   const [createForm, setCreateForm] = useState({ title: '', subject: '', description: '', courseOutline: '', scheduleTime: '', maxStudents: '25', feePkr: '3000', instructorId: '', type: 'LIVE' });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [healthStatus, setHealthStatus] = useState<{ database: string; resend: string; daily: string; openai: string } | null>(null);
+  const [healthStatus, setHealthStatus] = useState<{ database: string; resend: string; livekit: string; openai: string } | null>(null);
   const [defaultTabSet, setDefaultTabSet] = useState(false);
 
   useEffect(() => {
@@ -110,10 +110,10 @@ export default function AdminPage() {
       .then((data) => setHealthStatus({
         database: data.database || 'unknown',
         resend: data.resend || 'unknown',
-        daily: data.daily || 'unknown',
+        livekit: data.livekit || 'unknown',
         openai: data.openai || 'unknown',
       }))
-      .catch(() => setHealthStatus({ database: 'failed', resend: 'failed', daily: 'failed', openai: 'failed' }));
+      .catch(() => setHealthStatus({ database: 'failed', resend: 'failed', livekit: 'failed', openai: 'failed' }));
   }, []);
 
   const fetchUsers = useCallback((role: RoleFilter = 'ALL') => {
@@ -499,7 +499,7 @@ export default function AdminPage() {
             {[
               { label: 'Database', key: 'database' as const },
               { label: 'Resend (Email)', key: 'resend' as const },
-              { label: 'Daily (Video)', key: 'daily' as const },
+              { label: 'LiveKit (Video)', key: 'livekit' as const },
               { label: 'OpenAI (AI Notes)', key: 'openai' as const },
             ].map(({ label, key }) => {
               const val = healthStatus?.[key] ?? 'loading';

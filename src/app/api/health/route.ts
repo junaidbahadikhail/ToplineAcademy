@@ -15,18 +15,12 @@ async function getResendStatus() {
   }
 }
 
-async function getDailyStatus() {
-  const domain = process.env.NEXT_PUBLIC_DAILY_DOMAIN;
-  const room = process.env.NEXT_PUBLIC_DAILY_ROOM;
-  if (!domain || !room) return 'missing';
-  try {
-    const response = await fetch(`https://${domain}/${room}`, {
-      method: 'HEAD', cache: 'no-store', redirect: 'manual',
-    });
-    return response.ok || [301, 302, 405].includes(response.status) ? 'reachable' : 'failed';
-  } catch {
-    return 'failed';
-  }
+function getLiveKitStatus() {
+  const url = process.env.LIVEKIT_URL;
+  const key = process.env.LIVEKIT_API_KEY;
+  const secret = process.env.LIVEKIT_API_SECRET;
+  if (!url || !key || !secret) return 'missing';
+  return 'configured';
 }
 
 function getOpenAIStatus() {
@@ -41,13 +35,13 @@ export async function GET() {
   const { error: dbError } = await supabaseAdmin.from('User').select('id').limit(1);
   const databaseStatus = dbError ? 'failed' : 'connected';
 
-  const [resendStatus, dailyStatus] = await Promise.all([getResendStatus(), getDailyStatus()]);
+  const resendStatus = await getResendStatus();
 
   return NextResponse.json({
     status: 'ok',
     database: databaseStatus,
     resend: resendStatus,
-    daily: dailyStatus,
+    livekit: getLiveKitStatus(),
     openai: getOpenAIStatus(),
   });
 }
