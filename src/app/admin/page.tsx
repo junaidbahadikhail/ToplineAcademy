@@ -231,7 +231,7 @@ export default function AdminPage() {
         title: createForm.title,
         subject: createForm.subject,
         description: createForm.description,
-        scheduleTime: createForm.scheduleTime,
+        scheduleTime: createForm.scheduleTime ? new Date(createForm.scheduleTime + ':00+05:00').toISOString() : '',
         maxStudents: Number(createForm.maxStudents),
         feePkr: Number(createForm.feePkr),
       }),

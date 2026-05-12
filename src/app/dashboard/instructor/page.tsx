@@ -134,7 +134,7 @@ export default function InstructorDashboardPage() {
         title: editForm.title,
         subject: editForm.subject,
         description: editForm.description,
-        scheduleTime: new Date(editForm.scheduleTime).toISOString(),
+        scheduleTime: new Date(editForm.scheduleTime + ':00+05:00').toISOString(),
         maxStudents: Number(editForm.maxStudents),
         feePkr: Number(editForm.feePkr),
       }),
@@ -266,7 +266,7 @@ export default function InstructorDashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...createForm,
-        scheduleTime: new Date(createForm.scheduleTime).toISOString(),
+        scheduleTime: new Date(createForm.scheduleTime + ':00+05:00').toISOString(),
         maxStudents: Number(createForm.maxStudents),
         feePkr: Number(createForm.feePkr),
       }),
