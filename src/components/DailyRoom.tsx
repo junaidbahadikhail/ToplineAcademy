@@ -25,13 +25,15 @@ export function DailyRoom({ token, serverUrl, isInstructor }: VideoRoomProps) {
   }
 
   return (
-    <div className="h-[650px] w-full rounded-3xl overflow-hidden border border-slate-200">
+    <div
+      data-lk-theme="default"
+      className="h-[650px] w-full rounded-3xl overflow-hidden border border-slate-200"
+    >
       <LiveKitRoom
-        video={!!isInstructor}
-        audio={!!isInstructor}
+        video={true}
+        audio={true}
         token={token}
         serverUrl={serverUrl}
-        data-lk-theme="default"
         style={{ height: '100%', width: '100%' }}
       >
         <VideoConference />

@@ -230,27 +230,23 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
                 </div>
               )}
 
-              {/* Student — approved, class not live yet */}
-              {role === 'STUDENT' && enrollStatus === 'approved' && !isLive && (
-                <div className="mt-4 rounded-2xl bg-green-50 border border-green-200 p-4">
-                  <p className="text-sm font-semibold text-green-700">You are enrolled</p>
-                  <p className="mt-1 text-sm text-green-600">You can join when the session goes live.</p>
-                  <Link href="/dashboard/student" className="mt-3 inline-flex text-sm underline text-green-700">
-                    View in dashboard →
-                  </Link>
-                </div>
-              )}
-
-              {/* Student — approved + live session */}
-              {role === 'STUDENT' && enrollStatus === 'approved' && isLive && !joining && (
-                <div className="mt-4">
-                  <p className="text-sm text-green-700 font-semibold mb-3">Session is live!</p>
-                  {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+              {/* Student — approved (upcoming or live) */}
+              {role === 'STUDENT' && enrollStatus === 'approved' && !joining && (
+                <div className={`mt-4 rounded-2xl border p-4 ${isLive ? 'bg-green-50 border-green-200' : 'bg-teal-50 border-teal-200'}`}>
+                  <p className={`text-sm font-semibold ${isLive ? 'text-green-700' : 'text-teal-800'}`}>
+                    {isLive ? 'Session is live now!' : 'You are enrolled'}
+                  </p>
+                  {!isLive && (
+                    <p className="mt-1 text-sm text-teal-700">
+                      Starts {fmt(cls.scheduleTime)}
+                    </p>
+                  )}
+                  {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
                   <button
                     onClick={joinSession}
-                    className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
+                    className={`mt-3 inline-flex rounded-full px-5 py-2.5 text-sm font-semibold text-white ${isLive ? 'bg-green-600 hover:bg-green-700' : 'bg-teal-950 hover:bg-teal-900'}`}
                   >
-                    Join live session →
+                    {isLive ? 'Join live session →' : 'Join the class →'}
                   </button>
                 </div>
               )}
