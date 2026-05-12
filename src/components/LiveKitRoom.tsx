@@ -15,14 +15,25 @@ interface LiveKitRoomProps {
 }
 
 export function LiveKitVideoRoom({ token, serverUrl }: LiveKitRoomProps) {
+  if (!token || !serverUrl) {
+    return (
+      <div className="h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400 text-sm">Video room unavailable — missing token or server URL.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[650px] w-full rounded-3xl border border-slate-200 bg-slate-900 overflow-hidden" data-lk-theme="default">
+    <div
+      data-lk-theme="default"
+      className="h-[650px] w-full rounded-3xl border border-slate-200 overflow-hidden"
+    >
       <LiveKitRoom
         token={token}
         serverUrl={serverUrl}
-        video={false}
-        audio={false}
-        style={{ height: '100%' }}
+        video={true}
+        audio={true}
+        style={{ height: '100%', width: '100%' }}
       >
         <VideoConference />
         <RoomAudioRenderer />
