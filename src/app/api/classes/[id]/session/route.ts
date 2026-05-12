@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
+import { closeRoom } from '@/lib/livekit';
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
@@ -32,6 +33,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   if (error) {
     return NextResponse.json({ error: 'Failed to update class status.' }, { status: 500 });
+  }
+
+  if (action === 'end') {
+    await closeRoom(`cls-${params.id}`);
   }
 
   return NextResponse.json(updated);
