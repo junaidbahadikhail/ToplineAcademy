@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import '@livekit/components-styles';
 import { SiteFooter } from '@/components/SiteFooter';
 
 export const metadata: Metadata = {

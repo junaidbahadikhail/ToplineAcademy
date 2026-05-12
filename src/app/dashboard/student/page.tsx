@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
 import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
@@ -87,8 +86,9 @@ export default function StudentDashboardPage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
+  const [joinRoomConfig, setJoinRoomConfig] = useState<{ token: string; serverUrl: string; roomName: string } | null>(null);
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
-  const router = useRouter();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -123,9 +123,17 @@ export default function StudentDashboardPage() {
     load();
   }, []);
 
-  const joinClass = (classId: string) => {
+  const joinClass = async (classId: string) => {
     setJoinLoading(classId);
-    router.push(`/room/${classId}`);
+    const res = await fetch(`/api/classes/${classId}/join`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      setJoiningClassId(classId);
+      setJoinRoomConfig({ token: data.token, serverUrl: data.serverUrl, roomName: data.roomName });
+    } else {
+      alert(data.error ?? 'Could not join session.');
+    }
+    setJoinLoading(null);
   };
 
   if (authorized === null || loading) return (
@@ -158,7 +166,25 @@ export default function StudentDashboardPage() {
       <SiteHeader />
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
 
-        {/* Coursera-style greeting header */}
+        {/* Live video panel */}
+        {joiningClassId && joinRoomConfig && (
+          <div className="mb-8">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
+                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> {enrollments.find((e) => e.class.id === joiningClassId)?.class.title ?? 'Live session'}
+              </span>
+              <button
+                onClick={() => { setJoiningClassId(null); setJoinRoomConfig(null); }}
+                className="rounded-full border border-slate-300 px-4 py-1 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Leave session
+              </button>
+            </div>
+            <LiveKitVideoRoom token={joinRoomConfig.token} serverUrl={joinRoomConfig.serverUrl} userName={user?.name} />
+          </div>
+        )}
+
+        {/* Greeting header */}
         <div className="mb-8 rounded-2xl bg-teal-950 p-8 text-white">
           <p className="text-teal-300 text-sm font-medium">{greeting},</p>
           <h1 className="mt-1 text-3xl font-bold">{firstName}!</h1>
