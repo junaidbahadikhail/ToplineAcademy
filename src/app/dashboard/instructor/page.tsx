@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SiteHeader } from '@/components/SiteHeader';
-import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
 
 type Tab = 'classes' | 'profile';
 
@@ -71,6 +71,7 @@ function toDatetimeLocal(iso: string) {
 }
 
 export default function InstructorDashboardPage() {
+  const router = useRouter();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('classes');
 
@@ -78,8 +79,6 @@ export default function InstructorDashboardPage() {
   const [instructorName, setInstructorName] = useState<string | null>(null);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [liveClassId, setLiveClassId] = useState<string | null>(null);
-  const [liveRoomConfig, setLiveRoomConfig] = useState<{ token: string; serverUrl: string; roomName: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '', feePkr: '' });
   const [showCreate, setShowCreate] = useState(false);
@@ -179,14 +178,6 @@ export default function InstructorDashboardPage() {
     fetchClasses();
   };
 
-  const openVideo = async (classId: string) => {
-    const res = await fetch(`/api/classes/${classId}/join`, { method: 'POST' });
-    const data = await res.json();
-    if (!res.ok) { alert(data.error ?? 'Could not get room details.'); return; }
-    setLiveClassId(classId);
-    setLiveRoomConfig({ token: data.token, serverUrl: data.serverUrl, roomName: data.roomName });
-  };
-
   const controlSession = async (id: string, action: 'start' | 'end') => {
     setActionLoading(id + '-session');
     const patchRes = await fetch(`/api/classes/${id}/session`, {
@@ -200,8 +191,9 @@ export default function InstructorDashboardPage() {
       setActionLoading(null);
       return;
     }
-    if (action === 'start') { await openVideo(id); }
-    else if (liveClassId === id) { setLiveClassId(null); setLiveRoomConfig(null); }
+    if (action === 'start') {
+      router.push(`/room/${id}`);
+    }
     setActionLoading(null);
     fetchClasses();
   };
@@ -314,21 +306,6 @@ export default function InstructorDashboardPage() {
     <main className="min-h-screen bg-slate-50">
       <SiteHeader />
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-
-        {/* Live video */}
-        {liveClassId && liveRoomConfig && (
-          <div className="mb-8">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Broadcasting: {classes.find((c) => c.id === liveClassId)?.title ?? 'Live session'}
-              </span>
-              <button onClick={() => { if (liveClassId) controlSession(liveClassId, 'end'); }} className="rounded-full bg-red-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-red-700">
-                End session
-              </button>
-            </div>
-            <LiveKitVideoRoom token={liveRoomConfig.token} serverUrl={liveRoomConfig.serverUrl} userName={instructorName ?? undefined} isInstructor />
-          </div>
-        )}
 
         {/* Greeting header */}
         <div className="mb-8 rounded-2xl bg-teal-950 p-8 text-white">
@@ -492,7 +469,7 @@ export default function InstructorDashboardPage() {
                           )}
                           {isLive && (
                             <>
-                              <button onClick={() => openVideo(cls.id)} className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700">Open video</button>
+                              <button onClick={() => router.push(`/room/${cls.id}`)} className="rounded-full bg-green-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-green-700">Open video</button>
                               {recordings[cls.id]?.phase !== 'recording' ? (
                                 <button onClick={() => recordingAction(cls.id, 'start')} className="rounded-full bg-red-500 px-4 py-1.5 text-xs font-semibold text-white hover:bg-red-600 flex items-center gap-1">
                                   <span className="h-2 w-2 rounded-full bg-white inline-block" /> Record

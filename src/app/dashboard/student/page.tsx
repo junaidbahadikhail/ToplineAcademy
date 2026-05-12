@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
 import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
@@ -86,9 +87,8 @@ export default function StudentDashboardPage() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
-  const [joinRoomConfig, setJoinRoomConfig] = useState<{ token: string; serverUrl: string; roomName: string } | null>(null);
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
+  const router = useRouter();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -123,17 +123,9 @@ export default function StudentDashboardPage() {
     load();
   }, []);
 
-  const joinClass = async (classId: string) => {
+  const joinClass = (classId: string) => {
     setJoinLoading(classId);
-    const res = await fetch(`/api/classes/${classId}/join`, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok) {
-      setJoiningClassId(classId);
-      setJoinRoomConfig({ token: data.token, serverUrl: data.serverUrl, roomName: data.roomName });
-    } else {
-      alert(data.error ?? 'Could not join session.');
-    }
-    setJoinLoading(null);
+    router.push(`/room/${classId}`);
   };
 
   if (authorized === null || loading) return (
@@ -157,8 +149,6 @@ export default function StudentDashboardPage() {
   const pending = enrollments.filter((e) => e.status === 'PENDING').length;
   const liveNow = enrollments.filter((e) => e.status === 'APPROVED' && e.class.status === 'LIVE_NOW');
 
-  const joiningEnrollment = joiningClassId ? enrollments.find((e) => e.class.id === joiningClassId) : null;
-
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const firstName = user?.name?.split(' ')[0] ?? 'Student';
@@ -167,21 +157,6 @@ export default function StudentDashboardPage() {
     <main className="min-h-screen bg-slate-50">
       <SiteHeader />
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-
-        {/* Live video modal */}
-        {joiningClassId && joinRoomConfig && (
-          <div className="mb-8">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> {enrollments.find((e) => e.class.id === joiningClassId)?.class.title ?? 'Live session'}
-              </span>
-              <button onClick={() => { setJoiningClassId(null); setJoinRoomConfig(null); }} className="rounded-full border border-slate-300 px-4 py-1 text-sm text-slate-600 hover:bg-slate-50">
-                Leave session
-              </button>
-            </div>
-            <LiveKitVideoRoom token={joinRoomConfig.token} serverUrl={joinRoomConfig.serverUrl} userName={user?.name} />
-          </div>
-        )}
 
         {/* Coursera-style greeting header */}
         <div className="mb-8 rounded-2xl bg-teal-950 p-8 text-white">

@@ -2,9 +2,9 @@
 
 import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
-import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
 
 interface ClassDetail {
   id: string;
@@ -45,15 +45,13 @@ function fmt(iso: string) {
 
 function ClassDetailInner({ params }: { params: { id: string } }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [cls, setCls] = useState<ClassDetail | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [enrollStatus, setEnrollStatus] = useState<EnrollStatus>(
     searchParams.get('enrolled') === '1' ? 'pending' : 'none'
   );
   const [joining, setJoining] = useState(false);
-  const [lkToken, setLkToken] = useState<string | null>(null);
-  const [lkServerUrl, setLkServerUrl] = useState<string | null>(null);
-  const [lkRoomName, setLkRoomName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [meetingNote, setMeetingNote] = useState<MeetingNote | null>(null);
@@ -90,16 +88,16 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
 
   const joinSession = async () => {
     setError(null);
+    setJoining(true);
+    // Validate the join before navigating (catches time-window errors)
     const res = await fetch(`/api/classes/${params.id}/join`, { method: 'POST' });
     const data = await res.json();
     if (!res.ok) {
       setError(data.error || 'Unable to join session.');
+      setJoining(false);
       return;
     }
-    setLkToken(data.token ?? null);
-    setLkServerUrl(data.serverUrl ?? null);
-    setLkRoomName(data.roomName ?? null);
-    setJoining(true);
+    router.push(`/room/${params.id}`);
   };
 
 
@@ -118,30 +116,11 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
   );
 
   const isLive = cls.status === 'LIVE_NOW';
-  const canJoin = joining && !!lkToken && !!lkServerUrl;
 
   return (
     <main>
       <SiteHeader />
       <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
-
-        {/* Live video */}
-        {canJoin && lkToken && lkServerUrl && (
-          <div className="mb-8">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
-                <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Live session
-              </span>
-              <button
-                onClick={() => { setJoining(false); setLkToken(null); setLkServerUrl(null); setLkRoomName(null); }}
-                className="text-sm text-slate-500 underline"
-              >
-                Leave
-              </button>
-            </div>
-            <LiveKitVideoRoom token={lkToken!} serverUrl={lkServerUrl!} />
-          </div>
-        )}
 
         <div className="rounded-3xl border border-slate-200 bg-white p-10 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
