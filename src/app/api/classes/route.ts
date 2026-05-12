@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
 import { demoClasses, getDemoClassStatus } from '@/lib/demo-classes';
 import { CreateClassSchema } from '@/lib/schemas';
+import { createOrGetDailyRoom, hasDailyDomain } from '@/lib/daily';
 
 const fallbackClasses = demoClasses.map((item) => ({
   id: item.id,
@@ -58,6 +59,9 @@ export async function POST(request: Request) {
 
   const { title, subject, description, scheduleTime, maxStudents, feePkr, type, videoUrl } = parsed.data;
 
+  const isAdmin = session.role === 'ADMIN';
+
+  // Create the class row first (no meetLink yet for LIVE classes)
   const { data: cls, error } = await supabaseAdmin
     .from('Class')
     .insert({
@@ -70,8 +74,8 @@ export async function POST(request: Request) {
       maxStudents,
       feePkr,
       videoUrl: videoUrl ?? null,
-      isApproved: session.role === 'ADMIN',
-      meetLink: type === 'LIVE' ? `tl-${Date.now().toString(36)}` : null,
+      isApproved: isAdmin,
+      meetLink: null,
     })
     .select()
     .single();
@@ -79,6 +83,17 @@ export async function POST(request: Request) {
   if (error || !cls) {
     console.error('Class create error:', error);
     return NextResponse.json({ error: 'Failed to create class.' }, { status: 500 });
+  }
+
+  // Admin-created LIVE classes: immediately provision a Daily.co room using the real class ID
+  if (isAdmin && type === 'LIVE' && hasDailyDomain()) {
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    const roomName = `tl-${cls.id.slice(0, 8)}-${slug}`;
+    const roomUrl = await createOrGetDailyRoom(roomName);
+    if (roomUrl) {
+      await supabaseAdmin.from('Class').update({ meetLink: roomName }).eq('id', cls.id);
+      cls.meetLink = roomName;
+    }
   }
 
   return NextResponse.json(cls, { status: 201 });
