@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
-import { DailyRoom } from '@/components/DailyRoom';
+import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
 
 interface ClassDetail {
   id: string;
@@ -139,7 +139,7 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
                 Leave
               </button>
             </div>
-            <DailyRoom token={lkToken} serverUrl={lkServerUrl} />
+            <LiveKitVideoRoom token={lkToken!} serverUrl={lkServerUrl!} />
           </div>
         )}
 

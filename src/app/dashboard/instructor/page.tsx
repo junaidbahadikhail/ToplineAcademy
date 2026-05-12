@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
-import { DailyRoom } from '@/components/DailyRoom';
+import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
 
 interface ClassItem {
   id: string;
@@ -331,7 +331,7 @@ export default function InstructorDashboardPage() {
                 End session
               </button>
             </div>
-            <DailyRoom
+            <LiveKitVideoRoom
               token={liveRoomConfig.token}
               serverUrl={liveRoomConfig.serverUrl}
               userName={instructorName ?? undefined}

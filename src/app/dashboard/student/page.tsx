@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SiteHeader } from '@/components/SiteHeader';
-import { DailyRoom } from '@/components/DailyRoom';
+import { LiveKitVideoRoom } from '@/components/LiveKitRoom';
 
 interface Enrollment {
   id: string;
@@ -179,7 +179,7 @@ export default function StudentDashboardPage() {
                 Leave session
               </button>
             </div>
-            <DailyRoom token={joinRoomConfig.token} serverUrl={joinRoomConfig.serverUrl} userName={user?.name} />
+            <LiveKitVideoRoom token={joinRoomConfig.token} serverUrl={joinRoomConfig.serverUrl} userName={user?.name} />
           </div>
         )}
 
