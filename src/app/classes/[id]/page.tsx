@@ -51,11 +51,9 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
     searchParams.get('enrolled') === '1' ? 'pending' : 'none'
   );
   const [joining, setJoining] = useState(false);
-  const [joinRoomUrl, setJoinRoomUrl] = useState<string | null>(null);
-  const [joinToken, setJoinToken] = useState<string | null>(null);
-  const [joinRoomName, setJoinRoomName] = useState<string | null>(null);
-  const [joinDomain, setJoinDomain] = useState<string>('meet.jit.si');
-  const [joinUserName, setJoinUserName] = useState<string | null>(null);
+  const [lkToken, setLkToken] = useState<string | null>(null);
+  const [lkServerUrl, setLkServerUrl] = useState<string | null>(null);
+  const [lkRoomName, setLkRoomName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [meetingNote, setMeetingNote] = useState<MeetingNote | null>(null);
@@ -98,11 +96,9 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
       setError(data.error || 'Unable to join session.');
       return;
     }
-    setJoinRoomUrl(data.roomUrl ?? null);
-    setJoinToken(data.token ?? null);
-    setJoinRoomName(data.roomName);
-    setJoinDomain(data.domain ?? 'meet.jit.si');
-    setJoinUserName(data.userName ?? null);
+    setLkToken(data.token ?? null);
+    setLkServerUrl(data.serverUrl ?? null);
+    setLkRoomName(data.roomName ?? null);
     setJoining(true);
   };
 
@@ -122,7 +118,7 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
   );
 
   const isLive = cls.status === 'LIVE_NOW';
-  const canJoin = joining && !!joinRoomName;
+  const canJoin = joining && !!lkToken && !!lkServerUrl;
 
   return (
     <main>
@@ -130,20 +126,20 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
       <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
 
         {/* Live video */}
-        {canJoin && joinRoomName && (
+        {canJoin && lkToken && lkServerUrl && (
           <div className="mb-8">
             <div className="mb-3 flex items-center justify-between">
               <span className="inline-flex items-center gap-2 rounded-full bg-green-100 px-4 py-1 text-sm font-semibold text-green-700">
                 <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" /> Live session
               </span>
               <button
-                onClick={() => { setJoining(false); setJoinRoomUrl(null); setJoinToken(null); setJoinRoomName(null); }}
+                onClick={() => { setJoining(false); setLkToken(null); setLkServerUrl(null); setLkRoomName(null); }}
                 className="text-sm text-slate-500 underline"
               >
                 Leave
               </button>
             </div>
-            <DailyRoom roomUrl={joinRoomUrl ?? undefined} roomName={joinRoomUrl ? undefined : (joinRoomName ?? undefined)} domain={joinDomain} token={joinToken ?? undefined} userName={joinUserName ?? undefined} />
+            <DailyRoom token={lkToken} serverUrl={lkServerUrl} />
           </div>
         )}
 
@@ -264,11 +260,7 @@ function ClassDetailInner({ params }: { params: { id: string } }) {
                 <div className="mt-4">
                   <p className="text-xs text-slate-500 mb-3">This demo session is live right now. Join without enrollment to preview the classroom.</p>
                   <button
-                    onClick={() => {
-                      setJoinToken(null);
-                      setJoinRoomName(cls.meetLink ?? 'toplineacademy-session');
-                      setJoining(true);
-                    }}
+                    onClick={joinSession}
                     className="inline-flex rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-green-700"
                   >
                     Join demo session →

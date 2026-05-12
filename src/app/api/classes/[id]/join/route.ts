@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { createOrGetDailyRoom, hasDailyDomain, getDailyRoomUrl, createDailyMeetingToken } from '@/lib/daily';
+import { createLiveKitToken, LIVEKIT_URL } from '@/lib/livekit';
 
 const PRE_JOIN_MS = 15 * 60 * 1000;
 const SESSION_DURATION_MS = 2 * 60 * 60 * 1000;
@@ -12,7 +12,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
 
   const { data: cls } = await supabaseAdmin
     .from('Class')
-    .select('meetLink, scheduleTime, instructorId')
+    .select('scheduleTime, instructorId, status')
     .eq('id', params.id)
     .single();
 
@@ -41,7 +41,7 @@ export async function POST(_request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  // Instructors and admins can join at any time (they started the session)
+  // Students must be within the join window; owners can join any time
   if (!isOwner) {
     const now = Date.now();
     const start = new Date(cls.scheduleTime).getTime();
@@ -67,27 +67,15 @@ export async function POST(_request: Request, { params }: { params: { id: string
     .eq('id', session.userId)
     .single();
 
-  const baseRoomName = cls.meetLink ?? 'toplineacademy-session';
-  const userName = user?.name ?? session.email;
-  const userEmail = user?.email ?? session.email;
+  const userName = user?.name ?? session.email ?? 'Participant';
+  const roomName = `cls-${params.id}`;
 
-  // Daily.co — always active when NEXT_PUBLIC_DAILY_DOMAIN is set
-  if (hasDailyDomain()) {
-    const roomUrl = await createOrGetDailyRoom(baseRoomName) ?? getDailyRoomUrl(baseRoomName);
-    // Issue a meeting token so the user joins authenticated without a knock/auth screen
-    const token = await createDailyMeetingToken(baseRoomName, userName, isOwner);
-    return NextResponse.json({ roomUrl, token, roomName: baseRoomName, domain: 'daily', userName });
-  }
+  const token = await createLiveKitToken(roomName, session.userId, userName, isOwner);
 
-  // Jitsi fallback — only reached when Daily.co domain is not configured
-  const { getJitsiRoomConfig } = await import('@/lib/jitsi');
-  const roomConfig = getJitsiRoomConfig(baseRoomName, session.userId, userName, userEmail, isOwner);
   return NextResponse.json({
-    roomUrl: null,
-    token: null,
-    roomName: roomConfig.roomName,
-    domain: roomConfig.domain,
-    jwt: roomConfig.jwt ?? null,
+    token,
+    serverUrl: LIVEKIT_URL,
+    roomName,
     userName,
   });
 }

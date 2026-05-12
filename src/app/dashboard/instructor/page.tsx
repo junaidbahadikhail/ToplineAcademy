@@ -62,7 +62,7 @@ export default function InstructorDashboardPage() {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [liveClassId, setLiveClassId] = useState<string | null>(null);
-  const [liveRoomConfig, setLiveRoomConfig] = useState<{ roomUrl?: string; roomName: string; domain: string; jwt?: string } | null>(null);
+  const [liveRoomConfig, setLiveRoomConfig] = useState<{ token: string; serverUrl: string; roomName: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '', feePkr: '' });
   const [showCreate, setShowCreate] = useState(false);
@@ -147,19 +147,27 @@ export default function InstructorDashboardPage() {
   const openVideo = async (classId: string) => {
     const res = await fetch(`/api/classes/${classId}/join`, { method: 'POST' });
     const data = await res.json();
-    if (res.ok) {
-      setLiveClassId(classId);
-      setLiveRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.token ?? undefined });
+    if (!res.ok) {
+      alert(data.error ?? 'Could not get room details. Please try again.');
+      return;
     }
+    setLiveClassId(classId);
+    setLiveRoomConfig({ token: data.token, serverUrl: data.serverUrl, roomName: data.roomName });
   };
 
   const controlSession = async (id: string, action: 'start' | 'end') => {
     setActionLoading(id + '-session');
-    await fetch(`/api/classes/${id}/session`, {
+    const patchRes = await fetch(`/api/classes/${id}/session`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action }),
     });
+    if (!patchRes.ok) {
+      const errData = await patchRes.json().catch(() => ({}));
+      alert(errData.error ?? 'Failed to update session status.');
+      setActionLoading(null);
+      return;
+    }
     if (action === 'start') {
       await openVideo(id);
     } else if (liveClassId === id) {
@@ -324,10 +332,8 @@ export default function InstructorDashboardPage() {
               </button>
             </div>
             <DailyRoom
-              roomUrl={liveRoomConfig.roomUrl}
-              roomName={liveRoomConfig.roomUrl ? undefined : liveRoomConfig.roomName}
-              domain={liveRoomConfig.domain}
-              token={liveRoomConfig.jwt}
+              token={liveRoomConfig.token}
+              serverUrl={liveRoomConfig.serverUrl}
               userName={instructorName ?? undefined}
               isInstructor
             />

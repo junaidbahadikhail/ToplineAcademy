@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { createOrGetDailyRoom, hasDailyDomain } from '@/lib/daily';
 
 interface ClassParams {
   params: { id: string };
@@ -20,7 +19,7 @@ export async function PATCH(request: Request, { params }: ClassParams) {
 
   const { data: existing } = await supabaseAdmin
     .from('Class')
-    .select('id, title, type, meetLink')
+    .select('id')
     .eq('id', params.id)
     .single();
 
@@ -28,25 +27,9 @@ export async function PATCH(request: Request, { params }: ClassParams) {
     return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
   }
 
-  const updatePayload: Record<string, unknown> = { isApproved };
-
-  // Auto-create a Daily.co room when approving a LIVE class that doesn't have one yet
-  if (isApproved && existing.type === 'LIVE' && !existing.meetLink && hasDailyDomain()) {
-    const slug = (existing.title as string)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 40);
-    const roomName = `tl-${params.id.slice(0, 8)}-${slug}`;
-    const roomUrl = await createOrGetDailyRoom(roomName);
-    if (roomUrl) {
-      updatePayload.meetLink = roomName;
-    }
-  }
-
   const { data: updated, error } = await supabaseAdmin
     .from('Class')
-    .update(updatePayload)
+    .update({ isApproved })
     .eq('id', params.id)
     .select('id, isApproved, meetLink')
     .single();

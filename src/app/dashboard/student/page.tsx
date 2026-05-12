@@ -87,7 +87,7 @@ export default function StudentDashboardPage() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [joiningClassId, setJoiningClassId] = useState<string | null>(null);
-  const [joinRoomConfig, setJoinRoomConfig] = useState<{ roomUrl?: string; roomName: string; domain: string; jwt?: string } | null>(null);
+  const [joinRoomConfig, setJoinRoomConfig] = useState<{ token: string; serverUrl: string; roomName: string } | null>(null);
   const [joinLoading, setJoinLoading] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean | null>(null);
 
@@ -129,7 +129,9 @@ export default function StudentDashboardPage() {
     const data = await res.json();
     if (res.ok) {
       setJoiningClassId(classId);
-      setJoinRoomConfig({ roomUrl: data.roomUrl ?? undefined, roomName: data.roomName, domain: data.domain ?? 'meet.jit.si', jwt: data.token ?? undefined });
+      setJoinRoomConfig({ token: data.token, serverUrl: data.serverUrl, roomName: data.roomName });
+    } else {
+      alert(data.error ?? 'Could not join session.');
     }
     setJoinLoading(null);
   };
@@ -177,7 +179,7 @@ export default function StudentDashboardPage() {
                 Leave session
               </button>
             </div>
-            <DailyRoom roomUrl={joinRoomConfig.roomUrl} roomName={joinRoomConfig.roomUrl ? undefined : joinRoomConfig.roomName} domain={joinRoomConfig.domain} token={joinRoomConfig.jwt} userName={user?.name} />
+            <DailyRoom token={joinRoomConfig.token} serverUrl={joinRoomConfig.serverUrl} userName={user?.name} />
           </div>
         )}
 

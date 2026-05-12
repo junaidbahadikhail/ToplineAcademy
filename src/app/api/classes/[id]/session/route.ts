@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getSession } from '@/lib/get-session';
-import { createOrGetDailyRoom, hasDailyDomain } from '@/lib/daily';
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = getSession();
@@ -13,7 +12,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const { data: classItem } = await supabaseAdmin
     .from('Class')
-    .select('id, instructorId, title, meetLink')
+    .select('id, instructorId')
     .eq('id', params.id)
     .single();
 
@@ -23,22 +22,6 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 
   const status = action === 'start' ? 'LIVE_NOW' : 'ENDED';
-
-  // When starting, auto-create a Daily.co room if API key is configured
-  let meetLink = classItem.meetLink;
-  if (action === 'start' && hasDailyDomain()) {
-    const slug = (classItem.title as string)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '')
-      .slice(0, 40);
-    const roomName = `tl-${params.id.slice(0, 8)}-${slug}`;
-    const roomUrl = await createOrGetDailyRoom(roomName);
-    if (roomUrl) {
-      meetLink = roomName; // store room name; URL is constructed at join time
-      await supabaseAdmin.from('Class').update({ meetLink }).eq('id', params.id);
-    }
-  }
 
   const { data: updated, error } = await supabaseAdmin
     .from('Class')
