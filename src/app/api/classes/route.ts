@@ -57,9 +57,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Invalid input.' }, { status: 400 });
   }
 
-  const { title, subject, description, scheduleTime, maxStudents, feePkr, type, videoUrl } = parsed.data;
+  const { title, subject, description, courseOutline, scheduleTime, maxStudents, feePkr, type, videoUrl, instructorId: bodyInstructorId } = parsed.data;
 
   const isAdmin = session.role === 'ADMIN';
+  // Admins may assign any instructor; others always own the class themselves
+  const instructorId = isAdmin && bodyInstructorId ? bodyInstructorId : session.userId;
 
   // Create the class row first (no meetLink yet for LIVE classes)
   const { data: cls, error } = await supabaseAdmin
@@ -68,7 +70,8 @@ export async function POST(request: Request) {
       title,
       subject,
       description: description ?? '',
-      instructorId: session.userId,
+      courseOutline: courseOutline ?? null,
+      instructorId,
       type,
       scheduleTime: new Date(scheduleTime).toISOString(),
       maxStudents,

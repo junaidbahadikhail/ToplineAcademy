@@ -34,11 +34,13 @@ export const CreateClassSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.').max(200).transform(stripHtml),
   subject: z.string().min(2).max(100).transform(stripHtml),
   description: z.string().max(2000).optional(),
+  courseOutline: z.string().max(5000).optional(),
   scheduleTime: z.string().datetime({ message: 'scheduleTime must be a valid ISO datetime.' }),
   maxStudents: z.number().int().min(1).max(500),
   feePkr: z.number().int().min(0),
   type: z.enum(['LIVE', 'RECORDED']).default('LIVE'),
   videoUrl: z.string().url().optional().nullable(),
+  instructorId: z.string().uuid().optional(),
 });
 
 export const EnrollSchema = z.object({

@@ -75,10 +75,11 @@ export default function AdminPage() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('ALL');
   const [enrollmentFilter, _setEnrollmentFilter] = useState<EnrollmentFilter>('PENDING');
   const [classFilter, setClassFilter] = useState<ClassFilter>('PENDING');
+  const [instructors, setInstructors] = useState<{ id: string; name: string; email: string }[]>([]);
   const [createVisible, setCreateVisible] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createLoading, setCreateLoading] = useState(false);
-  const [createForm, setCreateForm] = useState({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '25', feePkr: '3000' });
+  const [createForm, setCreateForm] = useState({ title: '', subject: '', description: '', courseOutline: '', scheduleTime: '', maxStudents: '25', feePkr: '3000', instructorId: '', type: 'LIVE' });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [healthStatus, setHealthStatus] = useState<{ database: string; resend: string; daily: string; openai: string } | null>(null);
   const [defaultTabSet, setDefaultTabSet] = useState(false);
@@ -146,6 +147,13 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
+  const fetchInstructors = useCallback(() => {
+    fetch('/api/admin/users?role=INSTRUCTOR')
+      .then((r) => r.json())
+      .then((data: { id: string; name: string; email: string }[]) => setInstructors(data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!authorized) return;
     fetchStats();
@@ -153,8 +161,9 @@ export default function AdminPage() {
     fetchEnrollments();
     fetchClasses();
     fetchApprovedClasses();
+    fetchInstructors();
     fetchHealthStatus();
-  }, [authorized, fetchStats, fetchUsers, fetchEnrollments, fetchClasses, fetchApprovedClasses, fetchHealthStatus]);
+  }, [authorized, fetchStats, fetchUsers, fetchEnrollments, fetchClasses, fetchApprovedClasses, fetchInstructors, fetchHealthStatus]);
 
   useEffect(() => {
     if (defaultTabSet || !stats) return;
@@ -223,6 +232,7 @@ export default function AdminPage() {
 
   const createClass = async () => {
     setCreateError(null);
+    if (!createForm.instructorId) { setCreateError('Please select an instructor.'); return; }
     setCreateLoading(true);
     const response = await fetch('/api/classes', {
       method: 'POST',
@@ -231,9 +241,12 @@ export default function AdminPage() {
         title: createForm.title,
         subject: createForm.subject,
         description: createForm.description,
+        courseOutline: createForm.courseOutline || undefined,
         scheduleTime: createForm.scheduleTime ? new Date(createForm.scheduleTime + ':00+05:00').toISOString() : '',
         maxStudents: Number(createForm.maxStudents),
         feePkr: Number(createForm.feePkr),
+        type: createForm.type,
+        instructorId: createForm.instructorId,
       }),
     });
 
@@ -246,10 +259,12 @@ export default function AdminPage() {
     }
 
     setCreateVisible(false);
-    setCreateForm({ title: '', subject: '', description: '', scheduleTime: '', maxStudents: '25', feePkr: '3000' });
-    fetchClasses(classFilter);
+    setCreateForm({ title: '', subject: '', description: '', courseOutline: '', scheduleTime: '', maxStudents: '25', feePkr: '3000', instructorId: '', type: 'LIVE' });
+    setClassFilter('ALL');
+    fetchClasses('ALL');
     fetchApprovedClasses();
     fetchStats();
+    setActiveTab('classes');
   };
 
   if (authorized === null) {
@@ -315,26 +330,30 @@ export default function AdminPage() {
               </div>
             </div>
             <div className="mt-6 space-y-3">
-              {approvedClasses.length > 0 ? (
-                approvedClasses.slice(0, 5).map((cls) => (
+              {(() => {
+                const now = new Date();
+                const upcoming = approvedClasses
+                  .filter((cls) => new Date(cls.scheduleTime) >= now || cls.status === 'LIVE_NOW')
+                  .slice(0, 6);
+                return upcoming.length > 0 ? upcoming.map((cls) => (
                   <div key={cls.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="font-semibold text-slate-900">{cls.title}</p>
-                        <p className="text-xs text-slate-500">{cls.subject}</p>
+                        <p className="text-xs text-slate-500">{cls.subject} · {cls.instructor.name}</p>
                       </div>
                       <div className="text-right text-sm text-slate-500">
                         <p>{new Date(cls.scheduleTime).toLocaleDateString('en-PK', { weekday: 'short', day: 'numeric', month: 'short' })}</p>
-                        <p>{new Date(cls.scheduleTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })}</p>
+                        <p>{new Date(cls.scheduleTime).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })} PKT</p>
                       </div>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-400">
-                  No approved classes scheduled yet.
-                </div>
-              )}
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-400">
+                    No upcoming classes scheduled.
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -354,36 +373,56 @@ export default function AdminPage() {
 
             {createVisible && (
               <div className="mt-6 space-y-4">
+                {/* Instructor dropdown */}
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">Instructor <span className="text-red-500">*</span></span>
+                  <select
+                    value={createForm.instructorId}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, instructorId: e.target.value }))}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                  >
+                    <option value="">— Select instructor —</option>
+                    {instructors.map((i) => (
+                      <option key={i.id} value={i.id}>{i.name} ({i.email})</option>
+                    ))}
+                  </select>
+                </label>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-sm font-medium text-slate-700">Title</span>
+                    <span className="text-sm font-medium text-slate-700">Title <span className="text-red-500">*</span></span>
                     <input
                       value={createForm.title}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
+                      placeholder="e.g. Python for Data Science"
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                     />
                   </label>
                   <label className="block">
-                    <span className="text-sm font-medium text-slate-700">Subject</span>
+                    <span className="text-sm font-medium text-slate-700">Subject <span className="text-red-500">*</span></span>
                     <input
                       value={createForm.subject}
                       onChange={(e) => setCreateForm((prev) => ({ ...prev, subject: e.target.value }))}
+                      placeholder="e.g. Data Science"
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                     />
                   </label>
                 </div>
-                <label className="block">
-                  <span className="text-sm font-medium text-slate-700">Description</span>
-                  <textarea
-                    value={createForm.description}
-                    onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
-                  />
-                </label>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
-                    <span className="text-sm font-medium text-slate-700">Schedule</span>
+                    <span className="text-sm font-medium text-slate-700">Type</span>
+                    <select
+                      value={createForm.type}
+                      onChange={(e) => setCreateForm((prev) => ({ ...prev, type: e.target.value }))}
+                      className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                    >
+                      <option value="LIVE">Live</option>
+                      <option value="RECORDED">Recorded</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Schedule (PKT) <span className="text-red-500">*</span></span>
                     <input
                       type="datetime-local"
                       value={createForm.scheduleTime}
@@ -391,6 +430,9 @@ export default function AdminPage() {
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                     />
                   </label>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-sm font-medium text-slate-700">Fee (PKR)</span>
                     <input
@@ -400,8 +442,6 @@ export default function AdminPage() {
                       className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
                     />
                   </label>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block">
                     <span className="text-sm font-medium text-slate-700">Max students</span>
                     <input
@@ -412,13 +452,36 @@ export default function AdminPage() {
                     />
                   </label>
                 </div>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">Description</span>
+                  <textarea
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
+                    rows={2}
+                    placeholder="Short overview of the class"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 focus:border-teal-950 focus:outline-none"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-medium text-slate-700">Course Outline</span>
+                  <textarea
+                    value={createForm.courseOutline}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, courseOutline: e.target.value }))}
+                    rows={5}
+                    placeholder={"Week 1: Introduction\nWeek 2: Core concepts\nWeek 3: Hands-on project\n..."}
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 font-mono text-sm focus:border-teal-950 focus:outline-none"
+                  />
+                </label>
+
                 {createError && <p className="text-sm text-red-600">{createError}</p>}
                 <button
                   onClick={createClass}
                   disabled={createLoading}
                   className="rounded-full bg-teal-950 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-50"
                 >
-                  {createLoading ? 'Creating…' : 'Create class'}
+                  {createLoading ? 'Creating…' : 'Create & publish class'}
                 </button>
               </div>
             )}
